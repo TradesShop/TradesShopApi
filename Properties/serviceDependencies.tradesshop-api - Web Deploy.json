@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "mssql1": {
+      "serviceConnectorResourceId": "/subscriptions/[parameters('subscriptionId')]/resourceGroups/[parameters('serviceConnectorResourceGroupName')]/providers/Microsoft.Web/sites/tradesshop-api/providers/Microsoft.ServiceLinker/linkers/ConnectionStrings_devConnection_3C9ACB8EBD",
+      "secretStore": "AzureAppSettings",
+      "resourceId": "/subscriptions/[parameters('subscriptionId')]/resourceGroups/[parameters('resourceGroupName')]/providers/Microsoft.Sql/servers/tds-main/databases/tds-main",
+      "type": "mssql.azure",
+      "connectionId": "ConnectionStrings:_devConnection",
+      "dynamicId": null
+    }
+  }
+}

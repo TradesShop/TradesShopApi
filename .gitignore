@@ -1,0 +1,17 @@
+bin/
+obj/
+appsettings.Development.json
+appsettings.Production.json
+Properties/launchSettings.json
+**/appsettings.json
+
+# secrets
+*.secret.json
+secrets.json
+
+# OS
+.vs/
+*.user
+
+node_modules/
+/appsettings.json
