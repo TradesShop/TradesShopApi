@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Amazon.S3;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -30,6 +31,7 @@ using TradePlatform.Api.Services.Questions;
 using TradePlatform.Api.Services.Reviews;
 using TradePlatform.Api.Services.Subscriptions;
 using TradePlatform.Api.Services.users;
+using Amazon.Extensions.NETCore.Setup;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -127,6 +129,8 @@ builder.Services.AddScoped<MrzParserService>();
 builder.Services.AddScoped<UnifiedDocumentParserService>();
 builder.Services.AddScoped<VerificationRepository>();
 
+builder.Services.AddAWSService<IAmazonS3>();
+builder.Services.AddSingleton<AwsS3Service>();
 
 
 // ---------- Stripe ----------
