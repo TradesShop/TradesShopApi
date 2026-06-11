@@ -21,15 +21,15 @@ namespace TradePlatform.Api.Controllers
     {
         
         private readonly IJobsService _jobsService;
-        private readonly AzureBlobService _blob;
+       
         public JobsController(            
              IJobsService jobsService,
-             AzureBlobService blob,
+             
         IHttpContextAccessor http
         ) : base(http)
         {            
            _jobsService= jobsService;
-            _blob = blob;
+           
         }
         
         
@@ -127,13 +127,13 @@ namespace TradePlatform.Api.Controllers
         public async Task<IActionResult> GetInterestedTradersByJobId(Guid job_id)
         {
             var anyresults = await _jobsService.GetInterestedTradersByJobId(job_id);
-            foreach (var item in anyresults)
-            {
-                if (!string.IsNullOrEmpty(item.logoUrl))
-                {
-                    item.logoUrl = _blob.GetReadSasUrl(item.logoUrl);
-                }
-            }           
+            //foreach (var item in anyresults)
+            //{
+            //    if (!string.IsNullOrEmpty(item.logoUrl))
+            //    {
+            //        item.logoUrl = _blob.GetReadSasUrl(item.logoUrl);
+            //    }
+            //}           
 
             return ApiOk(anyresults);
         }
