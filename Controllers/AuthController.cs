@@ -156,9 +156,6 @@ namespace TradePlatform.Api.Controllers
 
         }
 
-
-
-
         [HttpPost("refresh")]        
         public async Task<IActionResult> Refresh()
         {
@@ -190,9 +187,6 @@ namespace TradePlatform.Api.Controllers
             };
             return Ok(user);
         }
-
-
-
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDto lgdto)
         {
