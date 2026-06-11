@@ -20,7 +20,6 @@ namespace TradePlatform.Api.Controllers
     [Route("api/[controller]")]
     public class AuthController : BaseController
     {
-
         private readonly IAuthService _auth;
         private readonly IUsersRepository _urepo;
         private readonly IEmailVerificationRepository _verificationRepo;
