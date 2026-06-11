@@ -51,7 +51,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddDefaultTokenProviders();
 
 // ---------- DI / Repositories ----------
-builder.Services.AddSingleton<AzureBlobService>();
+//builder.Services.AddSingleton<AzureBlobService>();
 builder.Services.AddSingleton<DapperContext>();
 //builder.Services.AddSingleton<DapperContext>();
 
