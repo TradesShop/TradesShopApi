@@ -191,6 +191,8 @@ namespace TradePlatform.Api.Controllers
             return Ok(user);
         }
 
+
+
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDto lgdto)
         {
