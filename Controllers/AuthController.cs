@@ -97,7 +97,7 @@ namespace TradePlatform.Api.Controllers
             if (string.IsNullOrWhiteSpace(rgdtos.email) || string.IsNullOrWhiteSpace(rgdtos.verifycode))
                 return ApiError(new { verified = false, message="Email and verifycation code are required."});
             //Console.WriteLine("DTO RECEIVED: " + JsonConvert.SerializeObject(rgdtos));
-            rgdtos.public_slug = GenerateSlug(rgdtos.business_name);
+            
             var verified = await _verificationRepo.VerifyCodeAsync(rgdtos.email, rgdtos.verifycode);
 
             if (!verified)
@@ -113,6 +113,7 @@ namespace TradePlatform.Api.Controllers
             {
                 case "tradesperson":
                     rgdtos.user_type = (int)UserType.tradesperson;
+                    rgdtos.public_slug = GenerateSlug(rgdtos.business_name);
                     //rgdtos.address_type_id = 3;/*tuser business address*/
                     break;
 
