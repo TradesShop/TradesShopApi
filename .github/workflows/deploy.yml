@@ -59,9 +59,9 @@ jobs:
           echo "Unzipping new build to temp..."
           sudo unzip -o /home/ubuntu/publish.zip -d $TEMP
 
-          echo "Pre-start validation..."
+          echo "Running pre-start validation..."
           if [ ! -f "$TEMP/TradesShop.Api.dll" ]; then
-            echo "❌ Build invalid — TradesShop.Api.dll missing. Aborting."
+            echo "❌ Build invalid — DLL missing. Aborting."
             exit 1
           fi
 
@@ -86,7 +86,6 @@ jobs:
             sudo mv $BACKUP $LIVE
             sudo systemctl restart ${{ secrets.EC2_SERVICE }}
             echo "Rollback complete."
-            sudo journalctl -u ${{ secrets.EC2_SERVICE }} -n 50 --no-pager
             exit 1
           fi
 
