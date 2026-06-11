@@ -1,4 +1,5 @@
 name: Deploy API to AWS EC2
+  echo "SCRIPT VERSION 3"
 
 
 on:
@@ -48,6 +49,7 @@ jobs:
         key: ${{ secrets.EC2_KEY }}
         script: |
           set -e
+          
           LIVE="${{ secrets.EC2_API_PATH }}"
           TEMP="/var/www/api-temp"
           BACKUP="/var/www/api-backup"
@@ -74,6 +76,7 @@ jobs:
           sudo mv $LIVE $BACKUP
           
           echo "Promoting temp to live..."
+          sudo rm -rf $LIVE
           sudo mv $TEMP/publish $LIVE
           
           echo "Starting service..."
@@ -81,7 +84,7 @@ jobs:
           
           echo "Checking service health..."
           sleep 3
-          if ! sudo.systemctl is-active --quiet ${{ secrets.EC2_SERVICE }}; then
+          if ! sudo systemctl is-active --quiet ${{ secrets.EC2_SERVICE }}; then
             echo "❌ Service failed to start — rolling back..."
             sudo rm -rf $LIVE
             sudo mv $BACKUP $LIVE
@@ -92,4 +95,5 @@ jobs:
           
           echo "Deployment successful."
           sudo journalctl -u ${{ secrets.EC2_SERVICE }} -n 50 --no-pager
+
 
