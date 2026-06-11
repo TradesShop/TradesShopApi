@@ -1,4 +1,6 @@
 name: Deploy API to AWS EC2
+  echo "SCRIPT VERSION 3"
+
 
 on:
   workflow_dispatch:
@@ -47,37 +49,39 @@ jobs:
         key: ${{ secrets.EC2_KEY }}
         script: |
           set -e
-
+          
           LIVE="${{ secrets.EC2_API_PATH }}"
           TEMP="/var/www/api-temp"
           BACKUP="/var/www/api-backup"
-
+          
           echo "Preparing temp folder..."
           sudo rm -rf $TEMP
           sudo mkdir -p $TEMP
-
+          
           echo "Unzipping new build to temp..."
           sudo unzip -o /home/ubuntu/publish.zip -d $TEMP
-
+          
           echo "Running pre-start validation..."
-          if [ ! -f "$TEMP/TradesShop.Api.dll" ]; then
+          # DLL is inside: $TEMP/publish/
+          if [ ! -f "$TEMP/publish/TradePlatform.Api.dll" ] && [ ! -f "$TEMP/publish/TradePlatform.Api.exe" ]; then
             echo "❌ Build invalid — DLL missing. Aborting."
             exit 1
           fi
-
+          
           echo "Stopping service..."
           sudo systemctl stop ${{ secrets.EC2_SERVICE }}
-
+          
           echo "Creating backup of current live version..."
           sudo rm -rf $BACKUP
           sudo mv $LIVE $BACKUP
-
+          
           echo "Promoting temp to live..."
-          sudo mv $TEMP $LIVE
-
+          sudo rm -rf $LIVE
+          sudo mv $TEMP/publish $LIVE
+          
           echo "Starting service..."
           sudo systemctl start ${{ secrets.EC2_SERVICE }}
-
+          
           echo "Checking service health..."
           sleep 3
           if ! sudo systemctl is-active --quiet ${{ secrets.EC2_SERVICE }}; then
@@ -88,6 +92,8 @@ jobs:
             echo "Rollback complete."
             exit 1
           fi
-
+          
           echo "Deployment successful."
           sudo journalctl -u ${{ secrets.EC2_SERVICE }} -n 50 --no-pager
+
+
