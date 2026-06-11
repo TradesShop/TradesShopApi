@@ -28,7 +28,7 @@ namespace TradePlatform.Api.Middleware
             }
             catch (Exception ex)
             {
-                await WriteServerError(context, ex);
+                await WriteServerError(context,ex);
             }
         }
 
