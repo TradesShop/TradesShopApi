@@ -1,27 +1,93 @@
-name: Deploy TradesShop API
+name: Deploy API to AWS EC2
 
 on:
   push:
     branches: [ "master" ]
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Install SSH key
-      uses: webfactory/ssh-agent@v0.7.0
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
       with:
-        ssh-private-key: ${{ secrets.EC2_KEY }}
+        dotnet-version: '8.0.x'
 
-    - name: Deploy to EC2
-      run: |
-        ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-          cd /var/www/TradesShop.Api
-          git pull origin master
-          dotnet publish -c Release -o /var/www/TradesShop.Api/publish
-          sudo systemctl restart TradesShop.Api
-        EOF
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Publish
+      run: dotnet publish -c Release -o publish
+
+    - name: Zip publish folder
+      run: zip -r publish.zip publish/
+
+    - name: Upload build to EC2
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_KEY }}
+        source: "publish.zip"
+        target: "/home/ubuntu/"
+
+    - name: Deploy on EC2 (Zero Downtime + Rollback)
+      uses: appleboy/ssh-action@v0.1.7
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_KEY }}
+        script: |
+          set -e
+
+          LIVE="${{ secrets.EC2_API_PATH }}"
+          TEMP="/var/www/api-temp"
+          BACKUP="/var/www/api-backup"
+
+          echo "Preparing temp folder..."
+          sudo rm -rf $TEMP
+          sudo mkdir -p $TEMP
+
+          echo "Unzipping new build to temp..."
+          sudo unzip -o /home/ubuntu/publish.zip -d $TEMP
+
+          echo "Pre-start validation..."
+          if [ ! -f "$TEMP/TradesShop.Api.dll" ]; then
+            echo "❌ Build invalid — TradesShop.Api.dll missing. Aborting."
+            exit 1
+          fi
+
+          echo "Stopping service..."
+          sudo systemctl stop ${{ secrets.EC2_SERVICE }}
+
+          echo "Creating backup of current live version..."
+          sudo rm -rf $BACKUP
+          sudo mv $LIVE $BACKUP
+
+          echo "Promoting temp to live..."
+          sudo mv $TEMP $LIVE
+
+          echo "Starting service..."
+          sudo systemctl start ${{ secrets.EC2_SERVICE }}
+
+          echo "Checking service health..."
+          sleep 3
+          if ! sudo systemctl is-active --quiet ${{ secrets.EC2_SERVICE }}; then
+            echo "❌ Service failed to start — rolling back..."
+            sudo rm -rf $LIVE
+            sudo mv $BACKUP $LIVE
+            sudo systemctl restart ${{ secrets.EC2_SERVICE }}
+            echo "Rollback complete."
+            sudo journalctl -u ${{ secrets.EC2_SERVICE }} -n 50 --no-pager
+            exit 1
+          fi
+
+          echo "Deployment successful."
+          sudo journalctl -u ${{ secrets.EC2_SERVICE }} -n 50 --no-pager
