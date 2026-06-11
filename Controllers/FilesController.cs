@@ -2,10 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using TradePlatform.Api.DTOs;
 using TradePlatform.Api.DTOs.Files;
-using TradePlatform.Api.Models;
 using TradePlatform.Api.Repositories.Interfaces;
 using TradePlatform.Api.Services.Files;
-using TradePlatform.Api.Services;
 
 namespace TradePlatform.Api.Controllers
 {
@@ -14,24 +12,26 @@ namespace TradePlatform.Api.Controllers
     public class FilesController : BaseController
     {
         private readonly IFileRepository _repo;
-        private readonly AzureBlobService _blob;
+        private readonly IAwsS3Service _s3;
         private readonly ITdsFileService _fileService;
 
-        public FilesController(IFileRepository repo
-            , AzureBlobService blob
-            , ITdsFileService fileService
-            ,IHttpContextAccessor http
+        public FilesController(
+            IFileRepository repo,
+            IAwsS3Service s3,
+            ITdsFileService fileService,
+            IHttpContextAccessor http
         ) : base(http)
         {
             _repo = repo;
-            _blob = blob;
+            _s3 = s3;
             _fileService = fileService;
         }
 
         [HttpPost("get")]
-        public async Task<IActionResult> Get(FilesGetRequestDto fgrDto)
+        public async Task<IActionResult> Get(FilesGetRequestDto dto)
         {
-            var files = await _fileService.GetUploadFilesAsync(fgrDto);
+            var files = await _fileService.GetUploadFilesAsync(dto);
+
             var result = files.Select(f => new
             {
                 f.id,
@@ -41,35 +41,35 @@ namespace TradePlatform.Api.Controllers
                 f.file_size,
                 f.created_at,
                 f.work_stage,
-                readUrl = _blob.GetReadSasUrl(f.file_name)
+                readUrl = _s3.GetPreSignedReadUrl(f.file_name)
             });
-            return Ok(result);
+
+            return ApiOk(result);
         }
 
         [HttpPost("upload")]
         public async Task<IActionResult> Upload([FromBody] FileUploadRequestDto dto)
         {
-            var sasUrl = _blob.GetUploadSasUrl(dto.filename, dto.content_type);
-            var blobUrl = _blob.GetBlobUrl(dto.filename);
-            var readUrl = _blob.GetReadSasUrl(dto.filename);
+            var uploadUrl = _s3.GetPreSignedUploadUrl(dto.filename, dto.content_type);
+            var fileUrl = _s3.GetObjectUrl(dto.filename);
+            var readUrl = _s3.GetPreSignedReadUrl(dto.filename);
 
             var (file, link) = await _repo.InsertFileWithLinkAsync(
                 dto.filename,
-                blobUrl,
+                fileUrl,
                 dto.content_type,
                 0,
                 dto.entity_type,
                 dto.entity_id,
                 dto.upload_type,
                 dto.work_stage,
-
                 false
             );
 
-            return Ok(new
+            return ApiOk(new
             {
-                uploadUrl = sasUrl,
-                blobUrl,
+                uploadUrl,
+                fileUrl,
                 readUrl,
                 dbRecord = file,
                 linkRecord = link
@@ -77,19 +77,18 @@ namespace TradePlatform.Api.Controllers
         }
 
         [HttpPost("delete")]
-        public async Task<IActionResult> Delete([FromBody] FileDeleteRequestDto fdrDto)
+        public async Task<IActionResult> Delete([FromBody] FileDeleteRequestDto dto)
         {
-            // 2. Delete blob from Azure
-            await _blob.DeleteBlobAsync(fdrDto);
-            await _repo.DeleteFileAsync(fdrDto.id);
+            await _s3.DeleteFileAsync(dto);
+            await _repo.DeleteFileAsync(dto.id);
             return ApiOk();
         }
+
         [HttpPost("description")]
         public async Task<IActionResult> UpdateDescription([FromBody] UpdateDescriptionDto dto)
         {
             await _repo.UpdateDescriptionAsync(dto.file_id, dto.description);
-            return Ok();
+            return ApiOk();
         }
-
     }
 }

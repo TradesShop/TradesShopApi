@@ -1,5 +1,8 @@
-﻿using Amazon.S3;
+﻿using Amazon;
+using Amazon.Extensions.NETCore.Setup;
+using Amazon.S3;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -31,7 +34,7 @@ using TradePlatform.Api.Services.Questions;
 using TradePlatform.Api.Services.Reviews;
 using TradePlatform.Api.Services.Subscriptions;
 using TradePlatform.Api.Services.users;
-using Amazon.Extensions.NETCore.Setup;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -129,9 +132,6 @@ builder.Services.AddScoped<MrzParserService>();
 builder.Services.AddScoped<UnifiedDocumentParserService>();
 builder.Services.AddScoped<VerificationRepository>();
 
-builder.Services.AddAWSService<IAmazonS3>();
-builder.Services.AddSingleton<AwsS3Service>();
-
 
 // ---------- Stripe ----------
 builder.Services.AddSingleton<StripeClient>(sp =>
@@ -223,6 +223,29 @@ builder.Services
 
 // ---------- Controllers ----------
 builder.Services.AddControllers();
+var aws = builder.Configuration.GetSection("AWS");
+
+// AWS SDK client
+builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
+builder.Services.AddAWSService<IAmazonS3>();
+
+
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables();
+// Register your S3 service
+builder.Services.AddSingleton<IAmazonS3>(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    return new AmazonS3Client(
+        config["AWS:AccessKey"],
+        config["AWS:SecretKey"],
+        Amazon.RegionEndpoint.GetBySystemName(config["AWS:Region"])
+    );
+});
+builder.Services.AddScoped<IAwsS3Service, AwsS3Service>();
+
 
 var app = builder.Build();
 

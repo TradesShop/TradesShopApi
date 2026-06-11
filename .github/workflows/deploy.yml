@@ -1,6 +1,7 @@
 name: Deploy API to AWS EC2
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "master" ]
 
@@ -10,10 +11,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '8.0.x'
 
@@ -38,7 +39,7 @@ jobs:
         source: "publish.zip"
         target: "/home/ubuntu/"
 
-      - name: Deploy on EC2 (Zero Downtime + Rollback)
+    - name: Deploy on EC2 (Zero Downtime + Rollback)
       uses: appleboy/ssh-action@v0.1.7
       with:
         host: ${{ secrets.EC2_HOST }}
@@ -90,4 +91,3 @@ jobs:
 
           echo "Deployment successful."
           sudo journalctl -u ${{ secrets.EC2_SERVICE }} -n 50 --no-pager
-
