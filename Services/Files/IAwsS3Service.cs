@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using TradePlatform.Api.DTOs;
 
 namespace TradePlatform.Api.Services.Files
 {
@@ -7,6 +8,7 @@ namespace TradePlatform.Api.Services.Files
         string GetPreSignedUploadUrl(string key, string contentType);
         string GetPreSignedReadUrl(string key);
         string GetObjectUrl(string key);
-        Task DeleteObjectAsync(string key);
+        //Task DeleteObjectAsync(string key);
+        Task DeleteFileAsync(FileDeleteRequestDto dto);
     }
 }
