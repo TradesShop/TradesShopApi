@@ -61,7 +61,7 @@ jobs:
           sudo unzip -o /home/ubuntu/publish.zip -d $TEMP
 
           echo "Running pre-start validation..."
-          if [ ! -f "$TEMP/TradesShop.Api.dll" ]; then
+          if [ ! -f "$TEMP/TradePlatform.Api.dll" ] && [ ! -f "$TEMP/TradePlatform.Api.exe" ]; then 
             echo "❌ Build invalid — DLL missing. Aborting."
             exit 1
           fi
