@@ -16,6 +16,9 @@
     <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     <CopyToPublishDirectory>Always</CopyToPublishDirectory>
   </None>
+ 
+  <None Remove="TradePlatform.Api" />
+
   <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.4.4" />
    
   <PackageReference Include="AWSSDK.S3" Version="4.0.24.1" />
