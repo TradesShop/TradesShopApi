@@ -20,15 +20,28 @@ jobs:
           dotnet-version: "8.0.x"
 
       - name: Restore dependencies
-        run: dotnet restore
+        run: dotnet restore TradePlatform.Api.csproj --runtime linux-x64
 
-      - name: Build
-        run: dotnet build --configuration Release --no-restore
+      - name: Clean previous builds
+        run: dotnet clean TradePlatform.Api.csproj -c Release
 
-      - name: Publish
+      - name: Publish (runtime-only, no SDK)
         run: |
-          dotnet publish TradePlatform.Api.csproj -c Release -o publish --runtime linux-x64 --no-self-contained
+          dotnet publish TradePlatform.Api.csproj \
+            --configuration Release \
+            --runtime linux-x64 \
+            --no-self-contained \
+            --output publish \
+            /p:UseAppHost=false
 
+      - name: Verify publish output
+        run: |
+          echo "Published files:"
+          ls -la publish
+          if [ ! -f publish/TradePlatform.Api.dll ]; then
+            echo "❌ DLL missing — publish failed."
+            exit 1
+          fi
 
       - name: Zip publish folder
         run: zip -r publish.zip publish/
@@ -55,10 +68,6 @@ jobs:
             TEMP="/var/www/api-temp"
             BACKUP="/var/www/api-backup"
             SERVICE="${{ secrets.EC2_SERVICE }}"
-
-            echo "=================================="
-            echo "Starting Deployment"
-            echo "=================================="
 
             echo "Cleaning temp directory..."
             sudo rm -rf "$TEMP"
@@ -117,6 +126,4 @@ jobs:
             sudo rm -f /home/ubuntu/publish.zip
 
             echo "Deployment successful."
-
-            echo "Recent service logs:"
             sudo journalctl -u "$SERVICE" -n 50 --no-pager
