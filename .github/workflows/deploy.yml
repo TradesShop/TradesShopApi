@@ -27,7 +27,7 @@ jobs:
 
       - name: Publish
         run: |
-          dotnet publish TradePlatform.Api/TradePlatform.Api.csproj \
+          dotnet publish TradePlatform.Api.csproj \
             --configuration Release \
             --output publish
 
