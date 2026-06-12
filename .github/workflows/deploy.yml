@@ -28,11 +28,15 @@ jobs:
       - name: Publish (runtime-only, no SDK)
         run: |
           dotnet publish TradePlatform.Api.csproj \
-            --configuration Release \
+            -c Release \
+            -o publish \
             --runtime linux-x64 \
             --no-self-contained \
-            --output publish \
-            /p:UseAppHost=false
+            /p:UseAppHost=false \
+            /p:PublishTrimmed=false \
+            /p:PublishSingleFile=false
+
+
 
       - name: Verify publish output
         run: |
