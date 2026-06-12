@@ -27,9 +27,8 @@ jobs:
 
       - name: Publish
         run: |
-          dotnet publish TradePlatform.Api.csproj \
-            --configuration Release \
-            --output publish
+          dotnet publish TradePlatform.Api.csproj -c Release -o publish --runtime linux-x64 --no-self-contained
+
 
       - name: Zip publish folder
         run: zip -r publish.zip publish/
