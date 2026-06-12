@@ -1,97 +1,123 @@
-name: Deploy API to AWS EC2
+name: Deploy TradesShop.Api to AWS EC2
 
 on:
   workflow_dispatch:
   push:
-    branches: [ "master" ]
+    branches:
+      - master
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '8.0.x'
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
 
-    - name: Restore dependencies
-      run: dotnet restore
+      - name: Restore dependencies
+        run: dotnet restore
 
-    - name: Build
-      run: dotnet build --configuration Release --no-restore
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
 
-    - name: Publish
-      run: dotnet publish -c Release -o publish
+      - name: Publish
+        run: |
+          dotnet publish TradesShop.Api/TradesShop.Api.csproj \
+            --configuration Release \
+            --output publish
 
-    - name: Zip publish folder
-      run: zip -r publish.zip publish/
+      - name: Zip publish folder
+        run: zip -r publish.zip publish/
 
-    - name: Upload build to EC2
-      uses: appleboy/scp-action@v0.1.7
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USER }}
-        key: ${{ secrets.EC2_KEY }}
-        source: "publish.zip"
-        target: "/home/ubuntu/"
+      - name: Upload build to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          source: "publish.zip"
+          target: "/home/ubuntu/"
 
-    - name: Deploy on EC2 (Zero Downtime + Rollback)
-      uses: appleboy/ssh-action@v0.1.7
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USER }}
-        key: ${{ secrets.EC2_KEY }}
-        script: |
-          set -e
+      - name: Deploy on EC2
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            set -e
 
-          LIVE="${{ secrets.EC2_API_PATH }}"
-          TEMP="/var/www/api-temp"
-          BACKUP="/var/www/api-backup"
+            LIVE="${{ secrets.EC2_API_PATH }}"
+            TEMP="/var/www/api-temp"
+            BACKUP="/var/www/api-backup"
+            SERVICE="${{ secrets.EC2_SERVICE }}"
 
-          echo "Preparing temp folder..."
-          sudo rm -rf $TEMP
-          sudo mkdir -p $TEMP
+            echo "=================================="
+            echo "Starting Deployment"
+            echo "=================================="
 
-          echo "Unzipping new build..."
-          sudo unzip -o /home/ubuntu/publish.zip -d $TEMP
+            echo "Cleaning temp directory..."
+            sudo rm -rf "$TEMP"
+            sudo mkdir -p "$TEMP"
 
-          echo "Validating build..."
-          if [ ! -f "$TEMP/publish/TradePlatform.Api.dll" ]; then
-            echo "❌ DLL missing — aborting deployment."
-            exit 1
-          fi
+            echo "Extracting deployment package..."
+            sudo unzip -o /home/ubuntu/publish.zip -d "$TEMP"
 
-          echo "Stopping service..."
-          sudo systemctl stop ${{ secrets.EC2_SERVICE }}
+            echo "Validating deployment package..."
+            if [ ! -f "$TEMP/publish/TradesShop.Api.dll" ]; then
+              echo "❌ TradesShop.Api.dll not found."
+              exit 1
+            fi
 
-          echo "Reloading systemd..."
-          sudo systemctl daemon-reload
+            echo "Stopping service..."
+            sudo systemctl stop "$SERVICE"
 
-          echo "Backing up current live version..."
-          sudo rm -rf $BACKUP
-          sudo mv $LIVE $BACKUP
+            echo "Preparing backup..."
+            sudo rm -rf "$BACKUP"
+            if [ -d "$LIVE" ]; then
+              sudo mv "$LIVE" "$BACKUP"
+            fi
 
-          echo "Promoting new version..."
-          sudo rm -rf $LIVE
-          sudo mv $TEMP/publish $LIVE
+            echo "Promoting new release..."
+            sudo mkdir -p "$(dirname "$LIVE")"
+            sudo mv "$TEMP/publish" "$LIVE"
 
-          echo "Starting service..."
-          sudo systemctl start ${{ secrets.EC2_SERVICE }}
+            echo "Setting permissions..."
+            sudo chmod -R 755 "$LIVE"
 
-          echo "Checking service health..."
-          sleep 3
-          if ! sudo systemctl is-active --quiet ${{ secrets.EC2_SERVICE }}; then
-            echo "❌ Service failed — rolling back..."
-            sudo rm -rf $LIVE
-            sudo mv $BACKUP $LIVE
-            sudo systemctl restart ${{ secrets.EC2_SERVICE }}
-            echo "Rollback complete."
-            exit 1
-          fi
+            echo "Reloading systemd..."
+            sudo systemctl daemon-reload || true
 
-          echo "Deployment successful."
-          sudo journalctl -u ${{ secrets.EC2_SERVICE }} -n 50 --no-pager
+            echo "Starting service..."
+            sudo systemctl start "$SERVICE"
+
+            echo "Waiting for application startup..."
+            sleep 10
+
+            echo "Checking service status..."
+            if ! sudo systemctl is-active --quiet "$SERVICE"; then
+              echo "❌ Service failed to start."
+              echo "Rolling back..."
+
+              sudo rm -rf "$LIVE"
+              if [ -d "$BACKUP" ]; then
+                sudo mv "$BACKUP" "$LIVE"
+              fi
+
+              sudo systemctl restart "$SERVICE"
+              echo "Rollback completed."
+              exit 1
+            fi
+
+            echo "Cleaning up..."
+            sudo rm -f /home/ubuntu/publish.zip
+
+            echo "Deployment successful."
+
+            echo "Recent service logs:"
+            sudo journalctl -u "$SERVICE" -n 50 --no-pager
