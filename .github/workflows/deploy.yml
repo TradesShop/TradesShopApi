@@ -27,7 +27,7 @@ jobs:
 
       - name: Publish
         run: |
-          dotnet publish TradesShop.Api/TradesShop.Api.csproj \
+          dotnet publish TradePlatform.Api/TradePlatform.Api.csproj \
             --configuration Release \
             --output publish
 
@@ -69,8 +69,8 @@ jobs:
             sudo unzip -o /home/ubuntu/publish.zip -d "$TEMP"
 
             echo "Validating deployment package..."
-            if [ ! -f "$TEMP/publish/TradesShop.Api.dll" ]; then
-              echo "❌ TradesShop.Api.dll not found."
+            if [ ! -f "$TEMP/publish/TradePlatform.Api.dll" ]; then
+              echo "❌ TradePlatform.Api.dll not found."
               exit 1
             fi
 
