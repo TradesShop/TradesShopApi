@@ -2,7 +2,6 @@
 
 using Dapper;
 using System.Data;
-using System.Data.SqlClient;
 using TradePlatform.Api.Data;
 using TradePlatform.Api.DTOs.Jobs;
 using TradePlatform.Api.DTOs.Questions;

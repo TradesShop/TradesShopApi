@@ -1,5 +1,5 @@
 ﻿using System.Data;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 
 namespace TradePlatform.Api.Data
 {
@@ -17,7 +17,7 @@ namespace TradePlatform.Api.Data
         /// Creates a new SQL connection (closed).
         /// </summary>
         public IDbConnection CreateConnection()
-            => new SqlConnection(_connectionString);
+            => new Microsoft.Data.SqlClient.SqlConnection(_connectionString);
 
         /// <summary>
         /// Creates and opens a new SQL connection.
@@ -25,7 +25,7 @@ namespace TradePlatform.Api.Data
         /// </summary>
         public IDbConnection CreateOpenConnection()
         {
-            var conn = new SqlConnection(_connectionString);
+            var conn = new Microsoft.Data.SqlClient.SqlConnection(_connectionString);
             conn.Open();
             return conn;
         }
