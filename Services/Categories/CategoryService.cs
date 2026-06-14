@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿
 using System.Data;
 using TradePlatform.Api.DTOs.Categories;
 using TradePlatform.Api.Models;

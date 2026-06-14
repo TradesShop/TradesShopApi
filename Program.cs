@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.IdentityModel.Tokens;
 using Stripe;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -132,6 +131,8 @@ builder.Services.AddScoped<MrzParserService>();
 builder.Services.AddScoped<UnifiedDocumentParserService>();
 builder.Services.AddScoped<VerificationRepository>();
 
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 // ---------- Stripe ----------
 builder.Services.AddSingleton<StripeClient>(sp =>
@@ -248,7 +249,11 @@ builder.Services.AddScoped<IAwsS3Service, AwsS3Service>();
 
 
 var app = builder.Build();
-
+//if (app.Environment.IsDevelopment())
+//{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+//}
 // ---------- Middleware pipeline ----------
 // ⭐ MUST be FIRST so it catches everything
 app.UseMiddleware<ErrorHandlingMiddleware>();
