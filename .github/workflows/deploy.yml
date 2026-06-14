@@ -1,12 +1,14 @@
-name: Deploy Windows EC2 API
+name: Deploy TradePlatform.Api to Windows EC2 (IIS)
 
 on:
-  push:
-    branches: [ "main" ]
   workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
 
 jobs:
-  deploy:
+  build:
     runs-on: windows-latest
 
     env:
@@ -14,96 +16,158 @@ jobs:
       WIN_EC2_USER: ${{ secrets.WIN_EC2_USER }}
       WIN_EC2_PASS: ${{ secrets.WIN_EC2_PASS }}
       WIN_EC2_PASS_KEY: ${{ secrets.WIN_EC2_PASS_KEY }}
+      WIN_IIS_PATH: ${{ secrets.WIN_IIS_PATH }}
+      WIN_IIS_APPPOOL: ${{ secrets.WIN_IIS_APPPOOL }}
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '8.0.x'
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
 
-    - name: Restore dependencies
-      run: dotnet restore
+      - name: Restore dependencies
+        shell: pwsh
+        run: dotnet restore TradePlatform.Api.csproj
 
-    - name: Build solution
-      run: dotnet build --configuration Release --no-restore
+      - name: Clean previous builds
+        shell: pwsh
+        run: dotnet clean TradePlatform.Api.csproj -c Release
 
-    - name: Publish API
-      run: dotnet publish -c Release -o publish
+      - name: Publish for Windows IIS
+        shell: pwsh
+        run: |
+          dotnet publish TradePlatform.Api.csproj `
+            -c Release `
+            -o publish `
+            --runtime win-x64 `
+            --no-self-contained `
+            /p:UseAppHost=false `
+            /p:PublishTrimmed=false `
+            /p:PublishSingleFile=false
 
-    - name: Zip publish folder
-      run: Compress-Archive -Path publish\* -DestinationPath publish.zip -Force
+      - name: Zip publish folder
+        shell: pwsh
+        run: Compress-Archive -Path publish -DestinationPath publish.zip -Force
 
-    - name: 🔍 Debug Secrets
-      shell: pwsh
-      run: |
-        Write-Host "=== SECRET DIAGNOSTICS ==="
-        Write-Host "WIN_EC2_PASS: $([string]::IsNullOrWhiteSpace($env:WIN_EC2_PASS) ? 'NULL' : 'PRESENT')"
-        Write-Host "WIN_EC2_PASS_KEY: $([string]::IsNullOrWhiteSpace($env:WIN_EC2_PASS_KEY) ? 'NULL' : 'PRESENT')"
+      #######################################################################
+      # PASSWORD SELECTION (DUAL SECRET + FULL CONSOLE.LOG)
+      #######################################################################
+      - name: Select password (dual secret)
+        id: pw
+        shell: pwsh
+        run: |
+          Write-Host "=== PASSWORD DIAGNOSTICS ==="
 
-        if ($env:WIN_EC2_PASS) {
-          Write-Host "WIN_EC2_PASS length: $($env:WIN_EC2_PASS.Length)"
-          Write-Host "WIN_EC2_PASS preview: $($env:WIN_EC2_PASS.Substring(0,2))***"
-        }
+          $p1 = $env:WIN_EC2_PASS
+          $p2 = $env:WIN_EC2_PASS_KEY
 
-        if ($env:WIN_EC2_PASS_KEY) {
-          Write-Host "WIN_EC2_PASS_KEY length: $($env:WIN_EC2_PASS_KEY.Length)"
-          Write-Host "WIN_EC2_PASS_KEY preview: $($env:WIN_EC2_PASS_KEY.Substring(0,2))***"
-        }
+          Write-Host "console.log -> WIN_EC2_PASS: $([string]::IsNullOrWhiteSpace($p1) ? 'NULL' : $p1)"
+          Write-Host "console.log -> WIN_EC2_PASS_KEY: $([string]::IsNullOrWhiteSpace($p2) ? 'NULL' : $p2)"
 
-    - name: 🚀 Connect to EC2 and Deploy
-      shell: pwsh
-      run: |
-        Write-Host "=== SELECTING PASSWORD ==="
+          if (![string]::IsNullOrWhiteSpace($p1)) {
+            Write-Host "console.log -> Using WIN_EC2_PASS"
+            Write-Host "console.log -> Length: $($p1.Length)"
+            Write-Host "console.log -> Preview: $($p1.Substring(0,2))***"
+            echo "pass=$p1" >> $env:GITHUB_OUTPUT
+          }
+          elseif (![string]::IsNullOrWhiteSpace($p2)) {
+            Write-Host "console.log -> Using WIN_EC2_PASS_KEY"
+            Write-Host "console.log -> Length: $($p2.Length)"
+            Write-Host "console.log -> Preview: $($p2.Substring(0,2))***"
+            echo "pass=$p2" >> $env:GITHUB_OUTPUT
+          }
+          else {
+            Write-Error "❌ BOTH PASSWORD SECRETS ARE NULL"
+            exit 1
+          }
 
-        $p1 = $env:WIN_EC2_PASS
-        $p2 = $env:WIN_EC2_PASS_KEY
+      #######################################################################
+      # COPY TO EC2 (WINRM)
+      #######################################################################
+      - name: Copy files to EC2 via WinRM
+        shell: pwsh
+        run: |
+          $pass = "${{ steps.pw.outputs.pass }}".Trim()
 
-        if (![string]::IsNullOrWhiteSpace($p1)) {
-          Write-Host "Using WIN_EC2_PASS"
-          $pass = $p1
-        }
-        elseif (![string]::IsNullOrWhiteSpace($p2)) {
-          Write-Host "Using WIN_EC2_PASS_KEY"
-          $pass = $p2
-        }
-        else {
-          Write-Error "❌ BOTH PASSWORD SECRETS ARE NULL"
-          exit 1
-        }
+          Write-Host "console.log -> Selected password length: $($pass.Length)"
+          Write-Host "console.log -> Selected password preview: $($pass.Substring(0,2))***"
 
-        Write-Host "Selected password length: $($pass.Length)"
-        Write-Host "Selected password preview: $($pass.Substring(0,2))***"
+          $secure = ConvertTo-SecureString $pass -AsPlainText -Force
+          $cred = New-Object System.Management.Automation.PSCredential($env:WIN_EC2_USER, $secure)
 
-        $pass = $pass.Trim()
-        $secure = ConvertTo-SecureString $pass -AsPlainText -Force
-        $cred = New-Object System.Management.Automation.PSCredential($env:WIN_EC2_USER, $secure)
-
-        Write-Host "=== CREATING PSSession ==="
-
-        try {
+          Write-Host "console.log -> Creating PSSession..."
           $session = New-PSSession `
             -ComputerName $env:WIN_EC2_HOST `
             -Credential $cred `
             -UseSSL `
             -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)
 
-          Write-Host "✅ PSSession created successfully."
-        }
-        catch {
-          Write-Error "❌ FAILED TO CREATE PSSession"
-          Write-Error $_
-          exit 1
-        }
+          Write-Host "console.log -> PSSession created."
 
-        Invoke-Command -Session $session -ScriptBlock {
-          New-Item -ItemType Directory -Path "C:\deploy-temp" -Force | Out-Null
-        }
+          Invoke-Command -Session $session -ScriptBlock {
+            New-Item -ItemType Directory -Path "C:\deploy-temp" -Force | Out-Null
+          }
 
-        Write-Host "Folder created on EC2."
+          Write-Host "console.log -> Copying publish.zip..."
+          Copy-Item -Path publish.zip -Destination "C:\deploy-temp\publish.zip" -ToSession $session -Force
 
-        Copy-Item -Path publish.zip -Destination "C:\deploy-temp\publish.zip" -ToSession $session -Force
+      #######################################################################
+      # DEPLOY ON EC2 (WINRM)
+      #######################################################################
+      - name: Deploy on EC2 via WinRM
+        shell: pwsh
+        run: |
+          $pass = "${{ steps.pw.outputs.pass }}".Trim()
 
-        Write-Host "publish.zip copied successfully."
+          $secure = ConvertTo-SecureString $pass -AsPlainText -Force
+          $cred = New-Object System.Management.Automation.PSCredential($env:WIN_EC2_USER, $secure)
+
+          Write-Host "console.log -> Connecting to EC2..."
+          $session = New-PSSession `
+            -ComputerName $env:WIN_EC2_HOST `
+            -Credential $cred `
+            -UseSSL `
+            -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)
+
+          Invoke-Command -Session $session -ScriptBlock {
+            $LIVE    = $env:WIN_IIS_PATH
+            $TEMP    = "C:\deploy-temp\publish"
+            $BACKUP  = "C:\deploy-backup"
+            $ZIP     = "C:\deploy-temp\publish.zip"
+            $APPPOOL = $env:WIN_IIS_APPPOOL
+
+            Write-Host "console.log -> Cleaning temp folder..."
+            Remove-Item -Recurse -Force $TEMP -ErrorAction SilentlyContinue
+
+            Write-Host "console.log -> Extracting package..."
+            Expand-Archive -Path $ZIP -DestinationPath "C:\deploy-temp" -Force
+
+            if (!(Test-Path "$TEMP\TradePlatform.Api.dll")) {
+              Write-Error "❌ DLL missing — deployment aborted."
+              exit 1
+            }
+
+            Write-Host "console.log -> Stopping IIS App Pool..."
+            Import-Module WebAdministration
+            Stop-WebAppPool $APPPOOL
+
+            Write-Host "console.log -> Backing up current version..."
+            Remove-Item -Recurse -Force $BACKUP -ErrorAction SilentlyContinue
+            if (Test-Path $LIVE) {
+              Move-Item $LIVE $BACKUP
+            }
+
+            Write-Host "console.log -> Deploying new version..."
+            Move-Item $TEMP $LIVE
+
+            Write-Host "console.log -> Starting IIS App Pool..."
+            Start-WebAppPool $APPPOOL
+
+            Write-Host "console.log -> Cleaning up..."
+            Remove-Item $ZIP -Force
+
+            Write-Host "console.log -> Deployment successful."
+          }
