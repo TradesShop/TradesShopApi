@@ -5,9 +5,18 @@ on:
   push:
     branches:
       - master
+
 jobs:
   build:
     runs-on: windows-latest
+
+    env:
+      WIN_EC2_HOST: ${{ secrets.WIN_EC2_HOST }}
+      WIN_EC2_USER: ${{ secrets.WIN_EC2_USER }}
+      WIN_EC2_PASS: ${{ secrets.WIN_EC2_PASS }}
+      WIN_EC2_PASS_KEY: ${{ secrets.WIN_EC2_PASS_KEY }}
+      WIN_IIS_PATH: ${{ secrets.WIN_IIS_PATH }}
+      WIN_IIS_APPPOOL: ${{ secrets.WIN_IIS_APPPOOL }}
 
     steps:
       - name: Checkout code
@@ -41,6 +50,16 @@ jobs:
       - name: Zip publish folder
         shell: pwsh
         run: Compress-Archive -Path publish -DestinationPath publish.zip -Force
+
+      - name: Verify Secrets
+        shell: pwsh
+        run: |
+          Write-Host "HOST exists: $($null -ne $env:WIN_EC2_HOST)"
+          Write-Host "USER exists: $($null -ne $env:WIN_EC2_USER)"
+          Write-Host "PASS exists: $($null -ne $env:WIN_EC2_PASS)"
+          Write-Host "PASS_KEY exists: $($null -ne $env:WIN_EC2_PASS_KEY)"
+          Write-Host "IIS_PATH exists: $($null -ne $env:WIN_IIS_PATH)"
+          Write-Host "APPPOOL exists: $($null -ne $env:WIN_IIS_APPPOOL)"
 
       #######################################################################
       # COPY TO EC2 (WINRM)
@@ -90,6 +109,8 @@ jobs:
 
           # Upload ZIP
           Copy-Item -Path publish.zip -Destination "C:\deploy-temp\publish.zip" -ToSession $session -Force
+
+          Remove-PSSession $session
 
       #######################################################################
       # DEPLOY ON EC2 (WINRM)
@@ -172,3 +193,5 @@ jobs:
 
             Write-Host "Deployment successful."
           } -ArgumentList $env:WIN_IIS_PATH, $env:WIN_IIS_APPPOOL
+
+          Remove-PSSession $session
