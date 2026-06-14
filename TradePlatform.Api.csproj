@@ -31,20 +31,16 @@
    
   <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
    
-	<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="6.0.31" />
-	<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="6.0.31" />
-	<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="6.0.31">
-	  <PrivateAssets>all</PrivateAssets>
-	  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-	</PackageReference>
-
-	<PackageReference Include="Microsoft.Data.SqlClient" Version="4.8.5" />
-
-	<PackageReference Include="Dapper" Version="2.1.72" />
-	<PackageReference Include="Stripe.net" Version="51.2.0-beta.2" />
-
-
-
+  <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Dapper" Version="2.1.72" />
+    <PackageReference Include="Stripe.net" Version="51.2.0-beta.2" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.1" />
+	<PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.5" />
   </ItemGroup>
 
 </Project>
