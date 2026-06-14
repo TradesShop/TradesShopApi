@@ -40,6 +40,7 @@
     <PackageReference Include="Dapper" Version="2.1.72" />
     <PackageReference Include="Stripe.net" Version="51.2.0-beta.2" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.1" />
+	<PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.5" />
   </ItemGroup>
 
 </Project>
