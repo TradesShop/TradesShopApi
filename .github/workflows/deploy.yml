@@ -1,4 +1,4 @@
-name: Deploy TradesShop.Api to AWS EC2
+name: Deploy TradePlatform.Api to Windows EC2 (IIS)
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout code
@@ -20,114 +20,82 @@ jobs:
           dotnet-version: "8.0.x"
 
       - name: Restore dependencies
-        run: dotnet restore TradePlatform.Api.csproj --runtime linux-x64
+        run: dotnet restore TradePlatform.Api.csproj
 
       - name: Clean previous builds
         run: dotnet clean TradePlatform.Api.csproj -c Release
 
-      - name: Publish (runtime-only, no SDK)
+      - name: Publish for Windows IIS
         run: |
-          dotnet publish TradePlatform.Api.csproj \
-            -c Release \
-            -o publish \
-            --runtime linux-x64 \
-            --no-self-contained \
-            /p:UseAppHost=false \
-            /p:PublishTrimmed=false \
+          dotnet publish TradePlatform.Api.csproj ^
+            -c Release ^
+            -o publish ^
+            --runtime win-x64 ^
+            --no-self-contained ^
+            /p:UseAppHost=false ^
+            /p:PublishTrimmed=false ^
             /p:PublishSingleFile=false
-
-
 
       - name: Verify publish output
         run: |
-          echo "Published files:"
-          ls -la publish
-          if [ ! -f publish/TradePlatform.Api.dll ]; then
-            echo "❌ DLL missing — publish failed."
-            exit 1
-          fi
+          dir publish
+          if (!(Test-Path "publish/TradePlatform.Api.dll")) {
+            Write-Error "❌ DLL missing — publish failed."
+          }
 
       - name: Zip publish folder
-        run: zip -r publish.zip publish/
+        run: Compress-Archive -Path publish -DestinationPath publish.zip -Force
 
-      - name: Upload build to EC2
+      - name: Upload build to Windows EC2
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_KEY }}
+          host: ${{ secrets.WIN_EC2_HOST }}
+          username: ${{ secrets.WIN_EC2_USER }}
+          key: ${{ secrets.WIN_EC2_KEY }}
           source: "publish.zip"
-          target: "/home/ubuntu/"
+          target: "C:/deploy-temp/"
 
-      - name: Deploy on EC2
+      - name: Deploy on Windows EC2 (IIS)
         uses: appleboy/ssh-action@v0.1.7
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_KEY }}
+          host: ${{ secrets.WIN_EC2_HOST }}
+          username: ${{ secrets.WIN_EC2_USER }}
+          key: ${{ secrets.WIN_EC2_KEY }}
           script: |
-            set -e
+            $LIVE = "${{ secrets.WIN_IIS_PATH }}"
+            $TEMP = "C:/deploy-temp/publish"
+            $BACKUP = "C:/deploy-backup"
+            $ZIP = "C:/deploy-temp/publish.zip"
+            $APPPOOL = "${{ secrets.WIN_IIS_APPPOOL }}"
 
-            LIVE="${{ secrets.EC2_API_PATH }}"
-            TEMP="/var/www/api-temp"
-            BACKUP="/var/www/api-backup"
-            SERVICE="${{ secrets.EC2_SERVICE }}"
+            Write-Host "Cleaning temp folder..."
+            Remove-Item -Recurse -Force $TEMP -ErrorAction SilentlyContinue
 
-            echo "Cleaning temp directory..."
-            sudo rm -rf "$TEMP"
-            sudo mkdir -p "$TEMP"
+            Write-Host "Extracting package..."
+            Expand-Archive -Path $ZIP -DestinationPath "C:/deploy-temp" -Force
 
-            echo "Extracting deployment package..."
-            sudo unzip -o /home/ubuntu/publish.zip -d "$TEMP"
-
-            echo "Validating deployment package..."
-            if [ ! -f "$TEMP/publish/TradePlatform.Api.dll" ]; then
-              echo "❌ TradePlatform.Api.dll not found."
+            if (!(Test-Path "$TEMP/TradePlatform.Api.dll")) {
+              Write-Error "❌ DLL missing — deployment aborted."
               exit 1
-            fi
+            }
 
-            echo "Stopping service..."
-            sudo systemctl stop "$SERVICE"
+            Write-Host "Stopping IIS App Pool..."
+            Import-Module WebAdministration
+            Stop-WebAppPool $APPPOOL
 
-            echo "Preparing backup..."
-            sudo rm -rf "$BACKUP"
-            if [ -d "$LIVE" ]; then
-              sudo mv "$LIVE" "$BACKUP"
-            fi
+            Write-Host "Backing up current version..."
+            Remove-Item -Recurse -Force $BACKUP -ErrorAction SilentlyContinue
+            if (Test-Path $LIVE) {
+              Move-Item $LIVE $BACKUP
+            }
 
-            echo "Promoting new release..."
-            sudo mkdir -p "$(dirname "$LIVE")"
-            sudo mv "$TEMP/publish" "$LIVE"
+            Write-Host "Deploying new version..."
+            Move-Item $TEMP $LIVE
 
-            echo "Setting permissions..."
-            sudo chmod -R 755 "$LIVE"
+            Write-Host "Starting IIS App Pool..."
+            Start-WebAppPool $APPPOOL
 
-            echo "Reloading systemd..."
-            sudo systemctl daemon-reload || true
+            Write-Host "Cleaning up..."
+            Remove-Item $ZIP -Force
 
-            echo "Starting service..."
-            sudo systemctl start "$SERVICE"
-
-            echo "Waiting for application startup..."
-            sleep 10
-
-            echo "Checking service status..."
-            if ! sudo systemctl is-active --quiet "$SERVICE"; then
-              echo "❌ Service failed to start."
-              echo "Rolling back..."
-
-              sudo rm -rf "$LIVE"
-              if [ -d "$BACKUP" ]; then
-                sudo mv "$BACKUP" "$LIVE"
-              fi
-
-              sudo systemctl restart "$SERVICE"
-              echo "Rollback completed."
-              exit 1
-            fi
-
-            echo "Cleaning up..."
-            sudo rm -f /home/ubuntu/publish.zip
-
-            echo "Deployment successful."
-            sudo journalctl -u "$SERVICE" -n 50 --no-pager
+            Write-Host "Deployment successful."
