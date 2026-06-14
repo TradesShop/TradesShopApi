@@ -51,25 +51,45 @@ jobs:
         run: |
           Write-Host "Connecting to EC2..."
 
-          $pass = $env:WIN_EC2_PASS.Trim()
-          if ([string]::IsNullOrWhiteSpace($pass)) {
-            Write-Error "WIN_EC2_PASS is null or empty."
+          # Primary and fallback passwords
+          $pass1 = $env:WIN_EC2_PASS
+          $pass2 = $env:WIN_EC2_PASS_KEY
+
+          # Trim safely
+          $pass1 = if ($pass1) { $pass1.Trim() } else { $null }
+          $pass2 = if ($pass2) { $pass2.Trim() } else { $null }
+
+          # Select password
+          if ($pass1) {
+            Write-Host "Using WIN_EC2_PASS"
+            $finalPass = $pass1
+          }
+          elseif ($pass2) {
+            Write-Host "Using WIN_EC2_PASS_KEY"
+            $finalPass = $pass2
+          }
+          else {
+            Write-Error "Both WIN_EC2_PASS and WIN_EC2_PASS_KEY are NULL. Cannot continue."
             exit 1
           }
 
-          $secure = ConvertTo-SecureString $pass -AsPlainText -Force
+          # Convert to secure credential
+          $secure = ConvertTo-SecureString $finalPass -AsPlainText -Force
           $cred = New-Object System.Management.Automation.PSCredential($env:WIN_EC2_USER, $secure)
 
+          # Create WinRM session
           $session = New-PSSession `
             -ComputerName $env:WIN_EC2_HOST `
             -Credential $cred `
             -UseSSL `
             -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)
 
+          # Ensure temp folder exists
           Invoke-Command -Session $session -ScriptBlock {
             New-Item -ItemType Directory -Path "C:\deploy-temp" -Force | Out-Null
           }
 
+          # Upload ZIP
           Copy-Item -Path publish.zip -Destination "C:\deploy-temp\publish.zip" -ToSession $session -Force
 
       #######################################################################
@@ -80,21 +100,40 @@ jobs:
         run: |
           Write-Host "Starting remote deployment..."
 
-          $pass = $env:WIN_EC2_PASS.Trim()
-          if ([string]::IsNullOrWhiteSpace($pass)) {
-            Write-Error "WIN_EC2_PASS is null or empty."
+          # Primary and fallback passwords
+          $pass1 = $env:WIN_EC2_PASS
+          $pass2 = $env:WIN_EC2_PASS_KEY
+
+          # Trim safely
+          $pass1 = if ($pass1) { $pass1.Trim() } else { $null }
+          $pass2 = if ($pass2) { $pass2.Trim() } else { $null }
+
+          # Select password
+          if ($pass1) {
+            Write-Host "Using WIN_EC2_PASS"
+            $finalPass = $pass1
+          }
+          elseif ($pass2) {
+            Write-Host "Using WIN_EC2_PASS_KEY"
+            $finalPass = $pass2
+          }
+          else {
+            Write-Error "Both WIN_EC2_PASS and WIN_EC2_PASS_KEY are NULL. Cannot continue."
             exit 1
           }
 
-          $secure = ConvertTo-SecureString $pass -AsPlainText -Force
+          # Convert to secure credential
+          $secure = ConvertTo-SecureString $finalPass -AsPlainText -Force
           $cred = New-Object System.Management.Automation.PSCredential($env:WIN_EC2_USER, $secure)
 
+          # Create WinRM session
           $session = New-PSSession `
             -ComputerName $env:WIN_EC2_HOST `
             -Credential $cred `
             -UseSSL `
             -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)
 
+          # Run deployment on EC2
           Invoke-Command -Session $session -ScriptBlock {
             param($LIVE, $APPPOOL)
 
