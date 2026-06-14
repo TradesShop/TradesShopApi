@@ -26,15 +26,7 @@ jobs:
         run: dotnet clean TradePlatform.Api.csproj -c Release
 
       - name: Publish for Windows IIS
-        run: |
-          dotnet publish TradePlatform.Api.csproj ^
-            -c Release ^
-            -o publish ^
-            --runtime win-x64 ^
-            --no-self-contained ^
-            /p:UseAppHost=false ^
-            /p:PublishTrimmed=false ^
-            /p:PublishSingleFile=false
+        run: dotnet publish TradePlatform.Api.csproj -c Release -o publish --runtime win-x64 --no-self-contained /p:UseAppHost=false /p:PublishTrimmed=false /p:PublishSingleFile=false
 
       - name: Verify publish output
         run: |
