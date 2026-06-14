@@ -67,8 +67,11 @@ jobs:
       - name: Copy files to EC2 via WinRM
         shell: pwsh
         run: |
-          Write-Host "Connecting to EC2..."
+          $ErrorActionPreference = "Stop"
 
+          Write-Host "Connecting to EC2 for file copy..."
+
+          # ---------------- Password selection ----------------
           $pass1 = $env:WIN_EC2_PASS
           $pass2 = $env:WIN_EC2_PASS_KEY
 
@@ -97,13 +100,18 @@ jobs:
             -UseSSL `
             -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)
 
-          Invoke-Command -Session $session -ScriptBlock {
-            New-Item -ItemType Directory -Path "C:\deploy-temp" -Force | Out-Null
+          try {
+            Invoke-Command -Session $session -ScriptBlock {
+              New-Item -ItemType Directory -Path "C:\deploy-temp" -Force | Out-Null
+            }
+
+            Copy-Item -Path publish.zip -Destination "C:\deploy-temp\publish.zip" -ToSession $session -Force
           }
-
-          Copy-Item -Path publish.zip -Destination "C:\deploy-temp\publish.zip" -ToSession $session -Force
-
-          Remove-PSSession $session
+          finally {
+            if ($session) {
+              Remove-PSSession $session
+            }
+          }
 
       #######################################################################
       # DEPLOY ON EC2 (WINRM)
@@ -111,8 +119,11 @@ jobs:
       - name: Deploy on EC2 via WinRM
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
+
           Write-Host "Starting remote deployment..."
 
+          # ---------------- Password selection ----------------
           $pass1 = $env:WIN_EC2_PASS
           $pass2 = $env:WIN_EC2_PASS_KEY
 
@@ -141,47 +152,120 @@ jobs:
             -UseSSL `
             -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)
 
-          Invoke-Command -Session $session -ScriptBlock {
-            param($LIVE, $APPPOOL)
+          try {
+            Invoke-Command -Session $session -ArgumentList $env:WIN_IIS_PATH, $env:WIN_IIS_APPPOOL -ScriptBlock {
+              param(
+                [string] $LIVE,
+                [string] $APPPOOL
+              )
 
-            $TEMP    = "C:\deploy-temp\publish"
-            $BACKUP  = "C:\deploy-backup"
-            $ZIP     = "C:\deploy-temp\publish.zip"
+              $ErrorActionPreference = "Stop"
 
-            Write-Host "Cleaning temp folder..."
-            Remove-Item -Recurse -Force $TEMP -ErrorAction SilentlyContinue
+              $TEMP   = "C:\deploy-temp\publish"
+              $BACKUP = "C:\deploy-backup"
+              $ZIP    = "C:\deploy-temp\publish.zip"
 
-            Write-Host "Extracting package..."
-            Expand-Archive -Path $ZIP -DestinationPath "C:\deploy-temp" -Force
+              Write-Host "Cleaning temp folder..."
+              Remove-Item -Path $TEMP -Recurse -Force -ErrorAction SilentlyContinue
 
-            if (!(Test-Path "$TEMP\TradePlatform.Api.dll")) {
-              Write-Error "DLL missing — deployment aborted."
-              exit 1
+              Write-Host "Extracting package..."
+              Expand-Archive -Path $ZIP -DestinationPath "C:\deploy-temp" -Force
+
+              if (!(Test-Path "$TEMP\TradePlatform.Api.dll")) {
+                throw "TradePlatform.Api.dll not found. Deployment aborted."
+              }
+
+              Import-Module WebAdministration
+
+              ##################################################################
+              # Stop IIS App Pool and wait until fully stopped
+              ##################################################################
+              Write-Host "Stopping IIS App Pool '$APPPOOL'..."
+              Stop-WebAppPool -Name $APPPOOL
+
+              Write-Host "Waiting for App Pool to stop..."
+              $maxWait = 30
+              $elapsed = 0
+              do {
+                Start-Sleep -Seconds 2
+                $elapsed += 2
+                $state = (Get-WebAppPoolState -Name $APPPOOL).Value
+                Write-Host "Current App Pool state: $state (elapsed ${elapsed}s)"
+              } while ($state -ne "Stopped" -and $elapsed -lt $maxWait)
+
+              if ($state -ne "Stopped") {
+                throw "App Pool '$APPPOOL' did not stop within $maxWait seconds."
+              }
+
+              ##################################################################
+              # Kill any remaining w3wp processes (just in case)
+              ##################################################################
+              Write-Host "Stopping remaining w3wp processes..."
+              Get-Process w3wp -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+
+              Start-Sleep -Seconds 3
+
+              ##################################################################
+              # Backup existing deployment
+              ##################################################################
+              Write-Host "Removing old backup..."
+              Remove-Item -Path $BACKUP -Recurse -Force -ErrorAction SilentlyContinue
+
+              if (Test-Path $LIVE) {
+                Write-Host "Backing up current version from '$LIVE' to '$BACKUP'..."
+                Move-Item -Path $LIVE -Destination $BACKUP -Force
+              }
+              else {
+                Write-Host "No existing LIVE folder at '$LIVE'. Skipping backup."
+              }
+
+              ##################################################################
+              # Deploy new version with retry (handles transient file locks)
+              ##################################################################
+              Write-Host "Deploying new version from '$TEMP' to '$LIVE'..."
+
+              $retries = 10
+              $delay   = 2
+              $success = $false
+
+              for ($i = 1; $i -le $retries -and -not $success; $i++) {
+                try {
+                  Move-Item -Path $TEMP -Destination $LIVE -Force -ErrorAction Stop
+                  Write-Host "Move-Item succeeded on attempt $i."
+                  $success = $true
+                }
+                catch {
+                  Write-Host "Move-Item attempt $i failed: $($_.Exception.Message)"
+                  if ($i -lt $retries) {
+                    Write-Host "Waiting $delay seconds before retry..."
+                    Start-Sleep -Seconds $delay
+                  }
+                  else {
+                    throw "Move-Item failed after $retries attempts. Aborting deployment."
+                  }
+                }
+              }
+
+              ##################################################################
+              # Start IIS App Pool
+              ##################################################################
+              Write-Host "Starting IIS App Pool '$APPPOOL'..."
+              Start-WebAppPool -Name $APPPOOL
+
+              Write-Host "Waiting 10 seconds for application startup..."
+              Start-Sleep -Seconds 10
+
+              ##################################################################
+              # Cleanup
+              ##################################################################
+              Write-Host "Cleaning up deployment artifacts..."
+              Remove-Item -Path $ZIP -Force -ErrorAction SilentlyContinue
+
+              Write-Host "Deployment successful."
             }
-
-            Write-Host "Stopping IIS App Pool..."
-            Import-Module WebAdministration
-            Stop-WebAppPool $APPPOOL
-
-            Write-Host "Backing up current version..."
-            Remove-Item -Recurse -Force $BACKUP -ErrorAction SilentlyContinue
-            if (Test-Path $LIVE) {
-              Move-Item $LIVE $BACKUP
+          }
+          finally {
+            if ($session) {
+              Remove-PSSession $session
             }
-
-            Write-Host "Deploying new version..."
-            Move-Item $TEMP $LIVE
-
-            Write-Host "Starting IIS App Pool..."
-            Start-WebAppPool $APPPOOL
-
-            Write-Host "Waiting 10 seconds for IIS to fully start..."
-            Start-Sleep -Seconds 10
-
-            Write-Host "Cleaning up..."
-            Remove-Item $ZIP -Force
-
-            Write-Host "Deployment successful."
-          } -ArgumentList $env:WIN_IIS_PATH, $env:WIN_IIS_APPPOOL
-
-          Remove-PSSession $session
+          }
