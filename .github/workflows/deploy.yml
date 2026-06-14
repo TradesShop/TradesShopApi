@@ -1,8 +1,7 @@
 name: Deploy TradePlatform.Api to Windows EC2 (IIS)
 
 on:
-  workflow_dispatch:
-  
+  workflow_dispatch:  
   push:
     branches:
       - master
