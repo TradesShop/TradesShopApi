@@ -24,62 +24,82 @@ jobs:
       with:
         dotnet-version: '8.0.x'
 
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build solution
+      run: dotnet build --configuration Release --no-restore
+
     - name: Publish API
-      run: |
-        dotnet publish -c Release -o publish
+      run: dotnet publish -c Release -o publish
 
     - name: Zip publish folder
-      run: |
-        Compress-Archive -Path publish\* -DestinationPath publish.zip -Force
+      run: Compress-Archive -Path publish\* -DestinationPath publish.zip -Force
 
-    - name: Debug Secrets
+    - name: 🔍 Debug Secrets
       shell: pwsh
       run: |
-        Write-Host "=== Checking Secrets ==="
+        Write-Host "=== SECRET DIAGNOSTICS ==="
+        Write-Host "WIN_EC2_PASS: $([string]::IsNullOrWhiteSpace($env:WIN_EC2_PASS) ? 'NULL' : 'PRESENT')"
+        Write-Host "WIN_EC2_PASS_KEY: $([string]::IsNullOrWhiteSpace($env:WIN_EC2_PASS_KEY) ? 'NULL' : 'PRESENT')"
 
-        if ($env:WIN_EC2_PASS) { Write-Host "WIN_EC2_PASS: PRESENT" } else { Write-Host "WIN_EC2_PASS: NULL" }
-        if ($env:WIN_EC2_PASS_KEY) { Write-Host "WIN_EC2_PASS_KEY: PRESENT" } else { Write-Host "WIN_EC2_PASS_KEY: NULL" }
-
-    - name: Connect to EC2 and Deploy
-      shell: pwsh
-      run: |
-        Write-Host "=== Selecting Password ==="
-
-        $pass1 = $env:WIN_EC2_PASS
-        $pass2 = $env:WIN_EC2_PASS_KEY
-
-        if (![string]::IsNullOrWhiteSpace($pass1)) {
-            Write-Host "Using WIN_EC2_PASS"
-            $pass = $pass1
+        if ($env:WIN_EC2_PASS) {
+          Write-Host "WIN_EC2_PASS length: $($env:WIN_EC2_PASS.Length)"
+          Write-Host "WIN_EC2_PASS preview: $($env:WIN_EC2_PASS.Substring(0,2))***"
         }
-        elseif (![string]::IsNullOrWhiteSpace($pass2)) {
-            Write-Host "Using WIN_EC2_PASS_KEY"
-            $pass = $pass2
+
+        if ($env:WIN_EC2_PASS_KEY) {
+          Write-Host "WIN_EC2_PASS_KEY length: $($env:WIN_EC2_PASS_KEY.Length)"
+          Write-Host "WIN_EC2_PASS_KEY preview: $($env:WIN_EC2_PASS_KEY.Substring(0,2))***"
+        }
+
+    - name: 🚀 Connect to EC2 and Deploy
+      shell: pwsh
+      run: |
+        Write-Host "=== SELECTING PASSWORD ==="
+
+        $p1 = $env:WIN_EC2_PASS
+        $p2 = $env:WIN_EC2_PASS_KEY
+
+        if (![string]::IsNullOrWhiteSpace($p1)) {
+          Write-Host "Using WIN_EC2_PASS"
+          $pass = $p1
+        }
+        elseif (![string]::IsNullOrWhiteSpace($p2)) {
+          Write-Host "Using WIN_EC2_PASS_KEY"
+          $pass = $p2
         }
         else {
-            Write-Error "❌ Both WIN_EC2_PASS and WIN_EC2_PASS_KEY are NULL or empty."
-            exit 1
+          Write-Error "❌ BOTH PASSWORD SECRETS ARE NULL"
+          exit 1
         }
 
-        Write-Host "Password length: $($pass.Length)"
-        Write-Host "Password preview: $($pass.Substring(0,2))***"
+        Write-Host "Selected password length: $($pass.Length)"
+        Write-Host "Selected password preview: $($pass.Substring(0,2))***"
 
         $pass = $pass.Trim()
         $secure = ConvertTo-SecureString $pass -AsPlainText -Force
         $cred = New-Object System.Management.Automation.PSCredential($env:WIN_EC2_USER, $secure)
 
-        Write-Host "=== Creating PSSession ==="
+        Write-Host "=== CREATING PSSession ==="
 
-        $session = New-PSSession `
+        try {
+          $session = New-PSSession `
             -ComputerName $env:WIN_EC2_HOST `
             -Credential $cred `
             -UseSSL `
             -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)
 
-        Write-Host "PSSession created successfully."
+          Write-Host "✅ PSSession created successfully."
+        }
+        catch {
+          Write-Error "❌ FAILED TO CREATE PSSession"
+          Write-Error $_
+          exit 1
+        }
 
         Invoke-Command -Session $session -ScriptBlock {
-            New-Item -ItemType Directory -Path "C:\deploy-temp" -Force | Out-Null
+          New-Item -ItemType Directory -Path "C:\deploy-temp" -Force | Out-Null
         }
 
         Write-Host "Folder created on EC2."
