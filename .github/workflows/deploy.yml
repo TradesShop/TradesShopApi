@@ -69,15 +69,12 @@ jobs:
         run: |
           Write-Host "Connecting to EC2..."
 
-          # Primary and fallback passwords
           $pass1 = $env:WIN_EC2_PASS
           $pass2 = $env:WIN_EC2_PASS_KEY
 
-          # Trim safely
           $pass1 = if ($pass1) { $pass1.Trim() } else { $null }
           $pass2 = if ($pass2) { $pass2.Trim() } else { $null }
 
-          # Select password
           if ($pass1) {
             Write-Host "Using WIN_EC2_PASS"
             $finalPass = $pass1
@@ -91,23 +88,19 @@ jobs:
             exit 1
           }
 
-          # Convert to secure credential
           $secure = ConvertTo-SecureString $finalPass -AsPlainText -Force
           $cred = New-Object System.Management.Automation.PSCredential($env:WIN_EC2_USER, $secure)
 
-          # Create WinRM session
           $session = New-PSSession `
             -ComputerName $env:WIN_EC2_HOST `
             -Credential $cred `
             -UseSSL `
             -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)
 
-          # Ensure temp folder exists
           Invoke-Command -Session $session -ScriptBlock {
             New-Item -ItemType Directory -Path "C:\deploy-temp" -Force | Out-Null
           }
 
-          # Upload ZIP
           Copy-Item -Path publish.zip -Destination "C:\deploy-temp\publish.zip" -ToSession $session -Force
 
           Remove-PSSession $session
@@ -120,15 +113,12 @@ jobs:
         run: |
           Write-Host "Starting remote deployment..."
 
-          # Primary and fallback passwords
           $pass1 = $env:WIN_EC2_PASS
           $pass2 = $env:WIN_EC2_PASS_KEY
 
-          # Trim safely
           $pass1 = if ($pass1) { $pass1.Trim() } else { $null }
           $pass2 = if ($pass2) { $pass2.Trim() } else { $null }
 
-          # Select password
           if ($pass1) {
             Write-Host "Using WIN_EC2_PASS"
             $finalPass = $pass1
@@ -142,18 +132,15 @@ jobs:
             exit 1
           }
 
-          # Convert to secure credential
           $secure = ConvertTo-SecureString $finalPass -AsPlainText -Force
           $cred = New-Object System.Management.Automation.PSCredential($env:WIN_EC2_USER, $secure)
 
-          # Create WinRM session
           $session = New-PSSession `
             -ComputerName $env:WIN_EC2_HOST `
             -Credential $cred `
             -UseSSL `
             -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)
 
-          # Run deployment on EC2
           Invoke-Command -Session $session -ScriptBlock {
             param($LIVE, $APPPOOL)
 
@@ -187,6 +174,9 @@ jobs:
 
             Write-Host "Starting IIS App Pool..."
             Start-WebAppPool $APPPOOL
+
+            Write-Host "Waiting 10 seconds for IIS to fully start..."
+            Start-Sleep -Seconds 10
 
             Write-Host "Cleaning up..."
             Remove-Item $ZIP -Force
