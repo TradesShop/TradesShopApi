@@ -26,68 +26,38 @@ jobs:
         run: dotnet clean TradePlatform.Api.csproj -c Release
 
       - name: Publish for Windows IIS
-        run: dotnet publish TradePlatform.Api.csproj -c Release -o publish --runtime win-x64 --no-self-contained /p:UseAppHost=false /p:PublishTrimmed=false /p:PublishSingleFile=false
-
-      - name: Verify publish output
-        run: |
-          dir publish
-          if (!(Test-Path "publish/TradePlatform.Api.dll")) {
-            Write-Error "❌ DLL missing — publish failed."
-          }
+        run: dotnet publish TradePlatform.Api.csproj -c Release -o publish --runtime win-x64 --no-self-contained /p:UseAppHost=false
 
       - name: Zip publish folder
         run: Compress-Archive -Path publish -DestinationPath publish.zip -Force
 
-      - name: Upload build to Windows EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.WIN_EC2_HOST }}
-          username: ${{ secrets.WIN_EC2_USER }}
-          key: ${{ secrets.WIN_EC2_KEY }}
-          source: "publish.zip"
-          target: "C:/deploy-temp/"
+      - name: Copy files to EC2 via WinRM
+        run: |
+          $session = New-PSSession -ComputerName $env:WIN_EC2_HOST -Credential (New-Object System.Management.Automation.PSCredential($env:WIN_EC2_USER,(ConvertTo-SecureString $env:WIN_EC2_PASS -AsPlainText -Force))) -UseSSL -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)
+          Copy-Item -Path publish.zip -Destination "C:\deploy-temp\publish.zip" -ToSession $session -Force
 
-      - name: Deploy on Windows EC2 (IIS)
-        uses: appleboy/ssh-action@v0.1.7
-        with:
-          host: ${{ secrets.WIN_EC2_HOST }}
-          username: ${{ secrets.WIN_EC2_USER }}
-          key: ${{ secrets.WIN_EC2_KEY }}
-          script: |
-            $LIVE = "${{ secrets.WIN_IIS_PATH }}"
-            $TEMP = "C:/deploy-temp/publish"
-            $BACKUP = "C:/deploy-backup"
-            $ZIP = "C:/deploy-temp/publish.zip"
-            $APPPOOL = "${{ secrets.WIN_IIS_APPPOOL }}"
+      - name: Deploy on EC2 via WinRM
+        run: |
+          $session = New-PSSession -ComputerName $env:WIN_EC2_HOST -Credential (New-Object System.Management.Automation.PSCredential($env:WIN_EC2_USER,(ConvertTo-SecureString $env:WIN_EC2_PASS -AsPlainText -Force))) -UseSSL -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)
 
-            Write-Host "Cleaning temp folder..."
+          Invoke-Command -Session $session -ScriptBlock {
+            $LIVE = $env:WIN_IIS_PATH
+            $TEMP = "C:\deploy-temp\publish"
+            $BACKUP = "C:\deploy-backup"
+            $ZIP = "C:\deploy-temp\publish.zip"
+            $APPPOOL = $env:WIN_IIS_APPPOOL
+
             Remove-Item -Recurse -Force $TEMP -ErrorAction SilentlyContinue
+            Expand-Archive -Path $ZIP -DestinationPath "C:\deploy-temp" -Force
 
-            Write-Host "Extracting package..."
-            Expand-Archive -Path $ZIP -DestinationPath "C:/deploy-temp" -Force
-
-            if (!(Test-Path "$TEMP/TradePlatform.Api.dll")) {
-              Write-Error "❌ DLL missing — deployment aborted."
-              exit 1
-            }
-
-            Write-Host "Stopping IIS App Pool..."
             Import-Module WebAdministration
             Stop-WebAppPool $APPPOOL
 
-            Write-Host "Backing up current version..."
             Remove-Item -Recurse -Force $BACKUP -ErrorAction SilentlyContinue
-            if (Test-Path $LIVE) {
-              Move-Item $LIVE $BACKUP
-            }
+            if (Test-Path $LIVE) { Move-Item $LIVE $BACKUP }
 
-            Write-Host "Deploying new version..."
             Move-Item $TEMP $LIVE
 
-            Write-Host "Starting IIS App Pool..."
             Start-WebAppPool $APPPOOL
-
-            Write-Host "Cleaning up..."
             Remove-Item $ZIP -Force
-
-            Write-Host "Deployment successful."
+          }
