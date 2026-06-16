@@ -1,0 +1,17 @@
+name: Deploy Service Live
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/deploy-service.yml
+    environment: live   # <-- requires approval
+    with:
+      IIS_PATH: ${{ secrets.WIN_IIS_PATH_LIVE }}
+      IIS_APPPOOL: ${{ secrets.WIN_IIS_APPPOOL_LIVE }}
+    secrets:
+      WIN_EC2_HOST: ${{ secrets.WIN_EC2_HOST }}
+      WIN_EC2_USER: ${{ secrets.WIN_EC2_USER }}
+      WIN_EC2_PASS: ${{ secrets.WIN_EC2_PASS }}
+      WIN_EC2_PASS_KEY: ${{ secrets.WIN_EC2_PASS_KEY }}
