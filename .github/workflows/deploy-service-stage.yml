@@ -8,10 +8,12 @@ jobs:
     uses: ./.github/workflows/deploy-service.yml
 
     with:
-      IIS_PATH: ${{ secrets.WIN_IIS_PATH_STAGE }}
-      IIS_APPPOOL: ${{ secrets.WIN_IIS_APPPOOL_STAGE }}
+      IIS_PATH: WIN_IIS_PATH_STAGE
+      IIS_APPPOOL: WIN_IIS_APPPOOL_STAGE
 
     secrets:
+      WIN_IIS_PATH_LIVE: ${{ secrets.WIN_IIS_PATH_STAGE }}
+      WIN_IIS_APPPOOL_LIVE: ${{ secrets.WIN_IIS_APPPOOL_STAGE }}
       WIN_EC2_HOST: ${{ secrets.WIN_EC2_HOST }}
       WIN_EC2_USER: ${{ secrets.WIN_EC2_USER }}
       WIN_EC2_PASS: ${{ secrets.WIN_EC2_PASS }}
