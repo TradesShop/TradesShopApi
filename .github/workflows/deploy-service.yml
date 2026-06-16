@@ -51,25 +51,28 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      - name: Build & Publish with Progress Bars
+      - name: Build & Publish (with visible progress)
         shell: pwsh
         run: |
           function Show-Progress {
               param([string]$Message, [int]$Seconds = 5)
-              Write-Host ""
-              Write-Host "=== $Message ===" -ForegroundColor Cyan
+
+              Write-Output ""
+              Write-Output "=== $Message ==="
+
               for ($i = 1; $i -le $Seconds; $i++) {
                   $percent = [int](($i / $Seconds) * 100)
                   $bar = "#" * ($i * 2)
                   $space = " " * (($Seconds - $i) * 2)
-                  Write-Host -NoNewline "`r[$bar$space] $percent% "
+                  Write-Output ("[$bar$space] $percent%")
+                  [Console]::Out.Flush()
                   Start-Sleep -Seconds 1
               }
-              Write-Host "`r[$('#' * ($Seconds * 2))] 100% "
-              Write-Host ""
-          }
 
-          Show-Progress -Message "Installing .NET SDK" -Seconds 3
+              Write-Output ("[$('#' * ($Seconds * 2))] 100%")
+              Write-Output ""
+              [Console]::Out.Flush()
+          }
 
           Show-Progress -Message "Restoring dependencies" -Seconds 4
           dotnet restore TradePlatform.Api.csproj
@@ -88,22 +91,24 @@ jobs:
           Show-Progress -Message "Creating deployment package" -Seconds 3
           Compress-Archive -Path publish -DestinationPath publish.zip -Force
 
-      - name: Copy to EC2 with Progress
+      - name: Copy to EC2 (with visible progress)
         shell: pwsh
         run: |
           function Show-Progress {
               param([string]$Message, [int]$Seconds = 5)
-              Write-Host ""
-              Write-Host "=== $Message ===" -ForegroundColor Cyan
+              Write-Output ""
+              Write-Output "=== $Message ==="
               for ($i = 1; $i -le $Seconds; $i++) {
                   $percent = [int](($i / $Seconds) * 100)
                   $bar = "#" * ($i * 2)
                   $space = " " * (($Seconds - $i) * 2)
-                  Write-Host -NoNewline "`r[$bar$space] $percent% "
+                  Write-Output ("[$bar$space] $percent%")
+                  [Console]::Out.Flush()
                   Start-Sleep -Seconds 1
               }
-              Write-Host "`r[$('#' * ($Seconds * 2))] 100% "
-              Write-Host ""
+              Write-Output ("[$('#' * ($Seconds * 2))] 100%")
+              Write-Output ""
+              [Console]::Out.Flush()
           }
 
           Show-Progress -Message "Copying package to EC2" -Seconds 5
@@ -130,22 +135,24 @@ jobs:
             Remove-PSSession $session
           }
 
-      - name: Deploy on EC2 with Progress
+      - name: Deploy on EC2 (with visible progress)
         shell: pwsh
         run: |
           function Show-Progress {
               param([string]$Message, [int]$Seconds = 5)
-              Write-Host ""
-              Write-Host "=== $Message ===" -ForegroundColor Cyan
+              Write-Output ""
+              Write-Output "=== $Message ==="
               for ($i = 1; $i -le $Seconds; $i++) {
                   $percent = [int](($i / $Seconds) * 100)
                   $bar = "#" * ($i * 2)
                   $space = " " * (($Seconds - $i) * 2)
-                  Write-Host -NoNewline "`r[$bar$space] $percent% "
+                  Write-Output ("[$bar$space] $percent%")
+                  [Console]::Out.Flush()
                   Start-Sleep -Seconds 1
               }
-              Write-Host "`r[$('#' * ($Seconds * 2))] 100% "
-              Write-Host ""
+              Write-Output ("[$('#' * ($Seconds * 2))] 100%")
+              Write-Output ""
+              [Console]::Out.Flush()
           }
 
           $pass = $env:WIN_EC2_PASS
@@ -161,29 +168,38 @@ jobs:
             -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)
 
           try {
-            Invoke-Command -Session $session -ArgumentList $env:WIN_IIS_PATH, $env:WIN_IIS_APPPOOL -ScriptBlock {
-              param($LIVE, $APPPOOL)
+            Show-Progress -Message "Stopping IIS AppPool '$env:WIN_IIS_APPPOOL'" -Seconds 4
 
-              Show-Progress -Message "Stopping IIS AppPool '$APPPOOL'" -Seconds 4
+            Invoke-Command -Session $session -ArgumentList $env:WIN_IIS_APPPOOL -ScriptBlock {
+              param($APPPOOL)
               Import-Module WebAdministration
               Stop-WebAppPool -Name $APPPOOL
-              Start-Sleep -Seconds 2
+            }
 
-              Show-Progress -Message "Deploying new version" -Seconds 6
+            Show-Progress -Message "Deploying new version" -Seconds 6
+
+            Invoke-Command -Session $session -ArgumentList $env:WIN_IIS_PATH -ScriptBlock {
+              param($LIVE)
               $TEMP = "C:\deploy-temp\publish"
               $ZIP  = "C:\deploy-temp\publish.zip"
+
               Expand-Archive -Path $ZIP -DestinationPath "C:\deploy-temp" -Force
 
               if (Test-Path $LIVE) {
                 Remove-Item -Path $LIVE -Recurse -Force
               }
               Move-Item -Path $TEMP -Destination $LIVE -Force
-
-              Show-Progress -Message "Starting IIS AppPool '$APPPOOL'" -Seconds 4
-              Start-WebAppPool -Name $APPPOOL
-
-              Write-Host "=== Deployment Completed Successfully ===" -ForegroundColor Green
             }
+
+            Show-Progress -Message "Starting IIS AppPool '$env:WIN_IIS_APPPOOL'" -Seconds 4
+
+            Invoke-Command -Session $session -ArgumentList $env:WIN_IIS_APPPOOL -ScriptBlock {
+              param($APPPOOL)
+              Import-Module WebAdministration
+              Start-WebAppPool -Name $APPPOOL
+            }
+
+            Write-Output "=== Deployment Completed Successfully ==="
           }
           finally {
             Remove-PSSession $session
