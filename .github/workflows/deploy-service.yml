@@ -51,68 +51,22 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      - name: Build & Publish (with visible progress)
+      - name: Build & Publish
         shell: pwsh
         run: |
-          function Show-Progress {
-              param([string]$Message, [int]$Seconds = 5)
-
-              Write-Output ""
-              Write-Output "=== $Message ==="
-
-              for ($i = 1; $i -le $Seconds; $i++) {
-                  $percent = [int](($i / $Seconds) * 100)
-                  $bar = "#" * ($i * 2)
-                  $space = " " * (($Seconds - $i) * 2)
-                  Write-Output ("[$bar$space] $percent%")
-                  [Console]::Out.Flush()
-                  Start-Sleep -Seconds 1
-              }
-
-              Write-Output ("[$('#' * ($Seconds * 2))] 100%")
-              Write-Output ""
-              [Console]::Out.Flush()
-          }
-
-          Show-Progress -Message "Restoring dependencies" -Seconds 4
-          dotnet restore TradePlatform.Api.csproj
-
-          Show-Progress -Message "Building project" -Seconds 4
-          dotnet build TradePlatform.Api.csproj -c Release --no-restore
-
-          Show-Progress -Message "Publishing application" -Seconds 5
           dotnet publish TradePlatform.Api.csproj `
             -c Release `
             -o publish `
             --runtime win-x64 `
             --no-self-contained `
-            /p:UseAppHost=false
+            /p:UseAppHost=false `
+            /p:IncludeNativeLibrariesForSelfExtract=true
 
-          Show-Progress -Message "Creating deployment package" -Seconds 3
           Compress-Archive -Path publish -DestinationPath publish.zip -Force
 
-      - name: Copy to EC2 (with visible progress)
+      - name: Copy to EC2
         shell: pwsh
         run: |
-          function Show-Progress {
-              param([string]$Message, [int]$Seconds = 5)
-              Write-Output ""
-              Write-Output "=== $Message ==="
-              for ($i = 1; $i -le $Seconds; $i++) {
-                  $percent = [int](($i / $Seconds) * 100)
-                  $bar = "#" * ($i * 2)
-                  $space = " " * (($Seconds - $i) * 2)
-                  Write-Output ("[$bar$space] $percent%")
-                  [Console]::Out.Flush()
-                  Start-Sleep -Seconds 1
-              }
-              Write-Output ("[$('#' * ($Seconds * 2))] 100%")
-              Write-Output ""
-              [Console]::Out.Flush()
-          }
-
-          Show-Progress -Message "Copying package to EC2" -Seconds 5
-
           $pass = $env:WIN_EC2_PASS
           if (-not $pass) { $pass = $env:WIN_EC2_PASS_KEY }
 
@@ -129,32 +83,16 @@ jobs:
             Invoke-Command -Session $session -ScriptBlock {
               New-Item -ItemType Directory -Path "C:\deploy-temp" -Force | Out-Null
             }
+
             Copy-Item -Path publish.zip -Destination "C:\deploy-temp\publish.zip" -ToSession $session -Force
           }
           finally {
             Remove-PSSession $session
           }
 
-      - name: Deploy on EC2 (with visible progress)
+      - name: Deploy on EC2 (Safe Config-Protected Deployment)
         shell: pwsh
         run: |
-          function Show-Progress {
-              param([string]$Message, [int]$Seconds = 5)
-              Write-Output ""
-              Write-Output "=== $Message ==="
-              for ($i = 1; $i -le $Seconds; $i++) {
-                  $percent = [int](($i / $Seconds) * 100)
-                  $bar = "#" * ($i * 2)
-                  $space = " " * (($Seconds - $i) * 2)
-                  Write-Output ("[$bar$space] $percent%")
-                  [Console]::Out.Flush()
-                  Start-Sleep -Seconds 1
-              }
-              Write-Output ("[$('#' * ($Seconds * 2))] 100%")
-              Write-Output ""
-              [Console]::Out.Flush()
-          }
-
           $pass = $env:WIN_EC2_PASS
           if (-not $pass) { $pass = $env:WIN_EC2_PASS_KEY }
 
@@ -168,30 +106,27 @@ jobs:
             -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)
 
           try {
-            Show-Progress -Message "Stopping IIS AppPool '$env:WIN_IIS_APPPOOL'" -Seconds 4
-
             Invoke-Command -Session $session -ArgumentList $env:WIN_IIS_APPPOOL -ScriptBlock {
               param($APPPOOL)
               Import-Module WebAdministration
               Stop-WebAppPool -Name $APPPOOL
             }
 
-            Show-Progress -Message "Deploying new version" -Seconds 6
-
             Invoke-Command -Session $session -ArgumentList $env:WIN_IIS_PATH -ScriptBlock {
               param($LIVE)
+
+              $ZIP = "C:\deploy-temp\publish.zip"
               $TEMP = "C:\deploy-temp\publish"
-              $ZIP  = "C:\deploy-temp\publish.zip"
 
               Expand-Archive -Path $ZIP -DestinationPath "C:\deploy-temp" -Force
 
-              if (Test-Path $LIVE) {
-                Remove-Item -Path $LIVE -Recurse -Force
-              }
-              Move-Item -Path $TEMP -Destination $LIVE -Force
-            }
+              # Remove old binaries only
+              Get-ChildItem -Path $LIVE -Include *.dll, *.exe, *.pdb -Recurse | Remove-Item -Force
 
-            Show-Progress -Message "Starting IIS AppPool '$env:WIN_IIS_APPPOOL'" -Seconds 4
+              # Copy new files but protect config files
+              Copy-Item -Path "$TEMP\*" -Destination $LIVE -Recurse -Force `
+                -Exclude "appsettings.json","appsettings.Production.json","web.config"
+            }
 
             Invoke-Command -Session $session -ArgumentList $env:WIN_IIS_APPPOOL -ScriptBlock {
               param($APPPOOL)
