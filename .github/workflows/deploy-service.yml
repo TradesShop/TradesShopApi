@@ -9,6 +9,7 @@ on:
       IIS_APPPOOL:
         required: true
         type: string
+
     secrets:
       WIN_EC2_HOST:
         required: true
@@ -18,17 +19,30 @@ on:
         required: false
       WIN_EC2_PASS_KEY:
         required: false
+
+      WIN_IIS_PATH_STAGE:
+        required: false
+      WIN_IIS_APPPOOL_STAGE:
+        required: false
+      WIN_IIS_PATH_LIVE:
+        required: false
+      WIN_IIS_APPPOOL_LIVE:
+        required: false
+
 jobs:
   deploy:
     runs-on: windows-latest
 
     env:
+      # Resolve IIS path + app pool from secret names passed via inputs
+      WIN_IIS_PATH: ${{ secrets[inputs.IIS_PATH] }}
+      WIN_IIS_APPPOOL: ${{ secrets[inputs.IIS_APPPOOL] }}
+
+      # EC2 connection secrets
       WIN_EC2_HOST: ${{ secrets.WIN_EC2_HOST }}
       WIN_EC2_USER: ${{ secrets.WIN_EC2_USER }}
       WIN_EC2_PASS: ${{ secrets.WIN_EC2_PASS }}
       WIN_EC2_PASS_KEY: ${{ secrets.WIN_EC2_PASS_KEY }}
-      WIN_IIS_PATH: ${{ secrets[inputs.IIS_PATH] }}
-      WIN_IIS_APPPOOL: ${{ secrets[inputs.IIS_APPPOOL] }}
 
     steps:
       - name: Checkout code
@@ -63,19 +77,14 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path publish -DestinationPath publish.zip -Force
 
-      - name: Verify Secrets
+      - name: Verify Inputs + Secrets
         shell: pwsh
         run: |
-          Write-Host "HOST exists: $($null -ne $env:WIN_EC2_HOST)"
-          Write-Host "USER exists: $($null -ne $env:WIN_EC2_USER)"
-          Write-Host "PASS exists: $($null -ne $env:WIN_EC2_PASS)"
-          Write-Host "PASS_KEY exists: $($null -ne $env:WIN_EC2_PASS_KEY)"
           Write-Host "IIS_PATH exists: $($null -ne $env:WIN_IIS_PATH)"
           Write-Host "APPPOOL exists: $($null -ne $env:WIN_IIS_APPPOOL)"
+          Write-Host "HOST exists: $($null -ne $env:WIN_EC2_HOST)"
+          Write-Host "USER exists: $($null -ne $env:WIN_EC2_USER)"
 
-      #######################################################################
-      # COPY TO EC2 (WINRM)
-      #######################################################################
       - name: Copy files to EC2 via WinRM
         shell: pwsh
         run: |
@@ -83,25 +92,12 @@ jobs:
 
           Write-Host "Connecting to EC2 for file copy..."
 
-          # ---------------- Password selection ----------------
           $pass1 = $env:WIN_EC2_PASS
           $pass2 = $env:WIN_EC2_PASS_KEY
 
-          $pass1 = if ($pass1) { $pass1.Trim() } else { $null }
-          $pass2 = if ($pass2) { $pass2.Trim() } else { $null }
-
-          if ($pass1) {
-            Write-Host "Using WIN_EC2_PASS"
-            $finalPass = $pass1
-          }
-          elseif ($pass2) {
-            Write-Host "Using WIN_EC2_PASS_KEY"
-            $finalPass = $pass2
-          }
-          else {
-            Write-Error "Both WIN_EC2_PASS and WIN_EC2_PASS_KEY are NULL. Cannot continue."
-            exit 1
-          }
+          if ($pass1) { $finalPass = $pass1 }
+          elseif ($pass2) { $finalPass = $pass2 }
+          else { throw "No EC2 password provided." }
 
           $secure = ConvertTo-SecureString $finalPass -AsPlainText -Force
           $cred = New-Object System.Management.Automation.PSCredential($env:WIN_EC2_USER, $secure)
@@ -120,14 +116,9 @@ jobs:
             Copy-Item -Path publish.zip -Destination "C:\deploy-temp\publish.zip" -ToSession $session -Force
           }
           finally {
-            if ($session) {
-              Remove-PSSession $session
-            }
+            if ($session) { Remove-PSSession $session }
           }
 
-      #######################################################################
-      # DEPLOY ON EC2 (WINRM)
-      #######################################################################
       - name: Deploy on EC2 via WinRM
         shell: pwsh
         run: |
@@ -135,25 +126,12 @@ jobs:
 
           Write-Host "Starting remote deployment..."
 
-          # ---------------- Password selection ----------------
           $pass1 = $env:WIN_EC2_PASS
           $pass2 = $env:WIN_EC2_PASS_KEY
 
-          $pass1 = if ($pass1) { $pass1.Trim() } else { $null }
-          $pass2 = if ($pass2) { $pass2.Trim() } else { $null }
-
-          if ($pass1) {
-            Write-Host "Using WIN_EC2_PASS"
-            $finalPass = $pass1
-          }
-          elseif ($pass2) {
-            Write-Host "Using WIN_EC2_PASS_KEY"
-            $finalPass = $pass2
-          }
-          else {
-            Write-Error "Both WIN_EC2_PASS and WIN_EC2_PASS_KEY are NULL. Cannot continue."
-            exit 1
-          }
+          if ($pass1) { $finalPass = $pass1 }
+          elseif ($pass2) { $finalPass = $pass2 }
+          else { throw "No EC2 password provided." }
 
           $secure = ConvertTo-SecureString $finalPass -AsPlainText -Force
           $cred = New-Object System.Management.Automation.PSCredential($env:WIN_EC2_USER, $secure)
@@ -166,10 +144,7 @@ jobs:
 
           try {
             Invoke-Command -Session $session -ArgumentList $env:WIN_IIS_PATH, $env:WIN_IIS_APPPOOL -ScriptBlock {
-              param(
-                [string] $LIVE,
-                [string] $APPPOOL
-              )
+              param($LIVE, $APPPOOL)
 
               $ErrorActionPreference = "Stop"
 
@@ -177,107 +152,29 @@ jobs:
               $BACKUP = "C:\deploy-backup"
               $ZIP    = "C:\deploy-temp\publish.zip"
 
-              Write-Host "Cleaning temp folder..."
               Remove-Item -Path $TEMP -Recurse -Force -ErrorAction SilentlyContinue
-
-              Write-Host "Extracting package..."
               Expand-Archive -Path $ZIP -DestinationPath "C:\deploy-temp" -Force
-
-              if (!(Test-Path "$TEMP\TradePlatform.Api.dll")) {
-                throw "TradePlatform.Api.dll not found. Deployment aborted."
-              }
 
               Import-Module WebAdministration
 
-              ##################################################################
-              # Stop IIS App Pool and wait until fully stopped
-              ##################################################################
-              Write-Host "Stopping IIS App Pool '$APPPOOL'..."
               Stop-WebAppPool -Name $APPPOOL
-
-              Write-Host "Waiting for App Pool to stop..."
-              $maxWait = 30
-              $elapsed = 0
-              do {
-                Start-Sleep -Seconds 2
-                $elapsed += 2
-                $state = (Get-WebAppPoolState -Name $APPPOOL).Value
-                Write-Host "Current App Pool state: $state (elapsed ${elapsed}s)"
-              } while ($state -ne "Stopped" -and $elapsed -lt $maxWait)
-
-              if ($state -ne "Stopped") {
-                throw "App Pool '$APPPOOL' did not stop within $maxWait seconds."
-              }
-
-              ##################################################################
-              # Kill any remaining w3wp processes
-              ##################################################################
-              Write-Host "Stopping remaining w3wp processes..."
-              Get-Process w3wp -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-
               Start-Sleep -Seconds 3
 
-              ##################################################################
-              # Backup existing deployment
-              ##################################################################
-              Write-Host "Removing old backup..."
+              Get-Process w3wp -ErrorAction SilentlyContinue | Stop-Process -Force
+
               Remove-Item -Path $BACKUP -Recurse -Force -ErrorAction SilentlyContinue
+              if (Test-Path $LIVE) { Move-Item -Path $LIVE -Destination $BACKUP -Force }
 
-              if (Test-Path $LIVE) {
-                Write-Host "Backing up current version from '$LIVE' to '$BACKUP'..."
-                Move-Item -Path $LIVE -Destination $BACKUP -Force
-              }
-              else {
-                Write-Host "No existing LIVE folder at '$LIVE'. Skipping backup."
-              }
+              Move-Item -Path $TEMP -Destination $LIVE -Force
 
-              ##################################################################
-              # Deploy new version with retry
-              ##################################################################
-              Write-Host "Deploying new version from '$TEMP' to '$LIVE'..."
-
-              $retries = 10
-              $delay   = 2
-              $success = $false
-
-              for ($i = 1; $i -le $retries -and -not $success; $i++) {
-                try {
-                  Move-Item -Path $TEMP -Destination $LIVE -Force -ErrorAction Stop
-                  Write-Host "Move-Item succeeded on attempt $i."
-                  $success = $true
-                }
-                catch {
-                  Write-Host "Move-Item attempt $i failed: $($_.Exception.Message)"
-                  if ($i -lt $retries) {
-                    Write-Host "Waiting $delay seconds before retry..."
-                    Start-Sleep -Seconds $delay
-                  }
-                  else {
-                    throw "Move-Item failed after $retries attempts. Aborting deployment."
-                  }
-                }
-              }
-
-              ##################################################################
-              # Start IIS App Pool
-              ##################################################################
-              Write-Host "Starting IIS App Pool '$APPPOOL'..."
               Start-WebAppPool -Name $APPPOOL
-
-              Write-Host "Waiting 10 seconds for application startup..."
               Start-Sleep -Seconds 10
 
-              ##################################################################
-              # Cleanup
-              ##################################################################
-              Write-Host "Cleaning up deployment artifacts..."
               Remove-Item -Path $ZIP -Force -ErrorAction SilentlyContinue
 
               Write-Host "Deployment successful."
             }
           }
           finally {
-            if ($session) {
-              Remove-PSSession $session
-            }
+            if ($session) { Remove-PSSession $session }
           }
