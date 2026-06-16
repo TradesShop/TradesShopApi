@@ -22,6 +22,7 @@
     <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     <CopyToPublishDirectory>Never</CopyToPublishDirectory>
   </Content>
+  
   <Content Update="appsettings*.json" CopyToOutputDirectory="Never" />
   <Content Update="web.config" CopyToOutputDirectory="Never" />
   <None Remove="TradePlatform.Api" />
