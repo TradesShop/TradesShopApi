@@ -9,14 +9,21 @@
   </PropertyGroup>
   <ItemGroup>
    <None Update="appsettings.json">
-    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    <CopyToPublishDirectory>Never</CopyToPublishDirectory>
   </None>
+
   <None Update="appsettings.Production.json">
-    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    <CopyToPublishDirectory>Never</CopyToPublishDirectory>
   </None>
- 
+
+  <Content Update="web.config">
+    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+  </Content>
+  <Content Update="appsettings*.json" CopyToOutputDirectory="Never" />
+  <Content Update="web.config" CopyToOutputDirectory="Never" />
   <None Remove="TradePlatform.Api" />
 
   <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.4.4" />
@@ -32,6 +39,10 @@
   <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
    
   <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0" />
+   
+  <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.5" />
+  <PackageReference Include="Microsoft.Data.SqlClient.SNI.runtime" Version="5.1.5" />
+
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0">
       <PrivateAssets>all</PrivateAssets>
@@ -40,7 +51,6 @@
     <PackageReference Include="Dapper" Version="2.1.72" />
     <PackageReference Include="Stripe.net" Version="51.2.0-beta.2" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.1" />
-	<PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.5" />
   </ItemGroup>
 
 </Project>
