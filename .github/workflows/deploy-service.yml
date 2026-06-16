@@ -18,8 +18,6 @@ on:
         required: false
       WIN_EC2_PASS_KEY:
         required: false
-        
-
 jobs:
   deploy:
     runs-on: windows-latest
