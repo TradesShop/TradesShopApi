@@ -41,22 +41,38 @@ jobs:
           dotnet-version: "8.0.x"
 
       - name: Restore dependencies
+        shell: pwsh
         run: dotnet restore TradePlatform.Api.csproj
 
       - name: Clean previous builds
+        shell: pwsh
         run: dotnet clean TradePlatform.Api.csproj -c Release
 
       - name: Publish for Windows IIS
+        shell: pwsh
         run: |
           dotnet publish TradePlatform.Api.csproj `
             -c Release `
             -o publish `
             --runtime win-x64 `
             --no-self-contained `
-            /p:UseAppHost=false
+            /p:UseAppHost=false `
+            /p:PublishTrimmed=false `
+            /p:PublishSingleFile=false
 
       - name: Zip publish folder
+        shell: pwsh
         run: Compress-Archive -Path publish -DestinationPath publish.zip -Force
+
+      - name: Verify Secrets
+        shell: pwsh
+        run: |
+          Write-Host "HOST exists: $($null -ne $env:WIN_EC2_HOST)"
+          Write-Host "USER exists: $($null -ne $env:WIN_EC2_USER)"
+          Write-Host "PASS exists: $($null -ne $env:WIN_EC2_PASS)"
+          Write-Host "PASS_KEY exists: $($null -ne $env:WIN_EC2_PASS_KEY)"
+          Write-Host "IIS_PATH exists: $($null -ne $env:WIN_IIS_PATH)"
+          Write-Host "APPPOOL exists: $($null -ne $env:WIN_IIS_APPPOOL)"
 
       #######################################################################
       # COPY TO EC2 (WINRM)
@@ -64,9 +80,51 @@ jobs:
       - name: Copy files to EC2 via WinRM
         shell: pwsh
         run: |
-          # --- your full working copy script here ---
-          # (unchanged)
-          # I kept your entire logic intact
+          $ErrorActionPreference = "Stop"
+
+          Write-Host "Connecting to EC2 for file copy..."
+
+          # ---------------- Password selection ----------------
+          $pass1 = $env:WIN_EC2_PASS
+          $pass2 = $env:WIN_EC2_PASS_KEY
+
+          $pass1 = if ($pass1) { $pass1.Trim() } else { $null }
+          $pass2 = if ($pass2) { $pass2.Trim() } else { $null }
+
+          if ($pass1) {
+            Write-Host "Using WIN_EC2_PASS"
+            $finalPass = $pass1
+          }
+          elseif ($pass2) {
+            Write-Host "Using WIN_EC2_PASS_KEY"
+            $finalPass = $pass2
+          }
+          else {
+            Write-Error "Both WIN_EC2_PASS and WIN_EC2_PASS_KEY are NULL. Cannot continue."
+            exit 1
+          }
+
+          $secure = ConvertTo-SecureString $finalPass -AsPlainText -Force
+          $cred = New-Object System.Management.Automation.PSCredential($env:WIN_EC2_USER, $secure)
+
+          $session = New-PSSession `
+            -ComputerName $env:WIN_EC2_HOST `
+            -Credential $cred `
+            -UseSSL `
+            -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)
+
+          try {
+            Invoke-Command -Session $session -ScriptBlock {
+              New-Item -ItemType Directory -Path "C:\deploy-temp" -Force | Out-Null
+            }
+
+            Copy-Item -Path publish.zip -Destination "C:\deploy-temp\publish.zip" -ToSession $session -Force
+          }
+          finally {
+            if ($session) {
+              Remove-PSSession $session
+            }
+          }
 
       #######################################################################
       # DEPLOY ON EC2 (WINRM)
@@ -74,5 +132,153 @@ jobs:
       - name: Deploy on EC2 via WinRM
         shell: pwsh
         run: |
-          # --- your full working deploy script here ---
-          # (unchanged)
+          $ErrorActionPreference = "Stop"
+
+          Write-Host "Starting remote deployment..."
+
+          # ---------------- Password selection ----------------
+          $pass1 = $env:WIN_EC2_PASS
+          $pass2 = $env:WIN_EC2_PASS_KEY
+
+          $pass1 = if ($pass1) { $pass1.Trim() } else { $null }
+          $pass2 = if ($pass2) { $pass2.Trim() } else { $null }
+
+          if ($pass1) {
+            Write-Host "Using WIN_EC2_PASS"
+            $finalPass = $pass1
+          }
+          elseif ($pass2) {
+            Write-Host "Using WIN_EC2_PASS_KEY"
+            $finalPass = $pass2
+          }
+          else {
+            Write-Error "Both WIN_EC2_PASS and WIN_EC2_PASS_KEY are NULL. Cannot continue."
+            exit 1
+          }
+
+          $secure = ConvertTo-SecureString $finalPass -AsPlainText -Force
+          $cred = New-Object System.Management.Automation.PSCredential($env:WIN_EC2_USER, $secure)
+
+          $session = New-PSSession `
+            -ComputerName $env:WIN_EC2_HOST `
+            -Credential $cred `
+            -UseSSL `
+            -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)
+
+          try {
+            Invoke-Command -Session $session -ArgumentList $env:WIN_IIS_PATH, $env:WIN_IIS_APPPOOL -ScriptBlock {
+              param(
+                [string] $LIVE,
+                [string] $APPPOOL
+              )
+
+              $ErrorActionPreference = "Stop"
+
+              $TEMP   = "C:\deploy-temp\publish"
+              $BACKUP = "C:\deploy-backup"
+              $ZIP    = "C:\deploy-temp\publish.zip"
+
+              Write-Host "Cleaning temp folder..."
+              Remove-Item -Path $TEMP -Recurse -Force -ErrorAction SilentlyContinue
+
+              Write-Host "Extracting package..."
+              Expand-Archive -Path $ZIP -DestinationPath "C:\deploy-temp" -Force
+
+              if (!(Test-Path "$TEMP\TradePlatform.Api.dll")) {
+                throw "TradePlatform.Api.dll not found. Deployment aborted."
+              }
+
+              Import-Module WebAdministration
+
+              ##################################################################
+              # Stop IIS App Pool and wait until fully stopped
+              ##################################################################
+              Write-Host "Stopping IIS App Pool '$APPPOOL'..."
+              Stop-WebAppPool -Name $APPPOOL
+
+              Write-Host "Waiting for App Pool to stop..."
+              $maxWait = 30
+              $elapsed = 0
+              do {
+                Start-Sleep -Seconds 2
+                $elapsed += 2
+                $state = (Get-WebAppPoolState -Name $APPPOOL).Value
+                Write-Host "Current App Pool state: $state (elapsed ${elapsed}s)"
+              } while ($state -ne "Stopped" -and $elapsed -lt $maxWait)
+
+              if ($state -ne "Stopped") {
+                throw "App Pool '$APPPOOL' did not stop within $maxWait seconds."
+              }
+
+              ##################################################################
+              # Kill any remaining w3wp processes
+              ##################################################################
+              Write-Host "Stopping remaining w3wp processes..."
+              Get-Process w3wp -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+
+              Start-Sleep -Seconds 3
+
+              ##################################################################
+              # Backup existing deployment
+              ##################################################################
+              Write-Host "Removing old backup..."
+              Remove-Item -Path $BACKUP -Recurse -Force -ErrorAction SilentlyContinue
+
+              if (Test-Path $LIVE) {
+                Write-Host "Backing up current version from '$LIVE' to '$BACKUP'..."
+                Move-Item -Path $LIVE -Destination $BACKUP -Force
+              }
+              else {
+                Write-Host "No existing LIVE folder at '$LIVE'. Skipping backup."
+              }
+
+              ##################################################################
+              # Deploy new version with retry
+              ##################################################################
+              Write-Host "Deploying new version from '$TEMP' to '$LIVE'..."
+
+              $retries = 10
+              $delay   = 2
+              $success = $false
+
+              for ($i = 1; $i -le $retries -and -not $success; $i++) {
+                try {
+                  Move-Item -Path $TEMP -Destination $LIVE -Force -ErrorAction Stop
+                  Write-Host "Move-Item succeeded on attempt $i."
+                  $success = $true
+                }
+                catch {
+                  Write-Host "Move-Item attempt $i failed: $($_.Exception.Message)"
+                  if ($i -lt $retries) {
+                    Write-Host "Waiting $delay seconds before retry..."
+                    Start-Sleep -Seconds $delay
+                  }
+                  else {
+                    throw "Move-Item failed after $retries attempts. Aborting deployment."
+                  }
+                }
+              }
+
+              ##################################################################
+              # Start IIS App Pool
+              ##################################################################
+              Write-Host "Starting IIS App Pool '$APPPOOL'..."
+              Start-WebAppPool -Name $APPPOOL
+
+              Write-Host "Waiting 10 seconds for application startup..."
+              Start-Sleep -Seconds 10
+
+              ##################################################################
+              # Cleanup
+              ##################################################################
+              Write-Host "Cleaning up deployment artifacts..."
+              Remove-Item -Path $ZIP -Force -ErrorAction SilentlyContinue
+
+              Write-Host "Deployment successful."
+            }
+          }
+          finally {
+            if ($session) {
+              Remove-PSSession $session
+            }
+          }
