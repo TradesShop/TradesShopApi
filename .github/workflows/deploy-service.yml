@@ -34,11 +34,9 @@ jobs:
     runs-on: windows-latest
 
     env:
-      # Resolve IIS path + app pool from secret names passed via inputs
       WIN_IIS_PATH: ${{ secrets[inputs.IIS_PATH] }}
       WIN_IIS_APPPOOL: ${{ secrets[inputs.IIS_APPPOOL] }}
 
-      # EC2 connection secrets
       WIN_EC2_HOST: ${{ secrets.WIN_EC2_HOST }}
       WIN_EC2_USER: ${{ secrets.WIN_EC2_USER }}
       WIN_EC2_PASS: ${{ secrets.WIN_EC2_PASS }}
@@ -48,58 +46,72 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup .NET 8
+      - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
 
-      - name: Restore dependencies
-        shell: pwsh
-        run: dotnet restore TradePlatform.Api.csproj
-
-      - name: Clean previous builds
-        shell: pwsh
-        run: dotnet clean TradePlatform.Api.csproj -c Release
-
-      - name: Publish for Windows IIS
+      - name: Build & Publish with Progress Bars
         shell: pwsh
         run: |
+          function Show-Progress {
+              param([string]$Message, [int]$Seconds = 5)
+              Write-Host ""
+              Write-Host "=== $Message ===" -ForegroundColor Cyan
+              for ($i = 1; $i -le $Seconds; $i++) {
+                  $percent = [int](($i / $Seconds) * 100)
+                  $bar = "#" * ($i * 2)
+                  $space = " " * (($Seconds - $i) * 2)
+                  Write-Host -NoNewline "`r[$bar$space] $percent% "
+                  Start-Sleep -Seconds 1
+              }
+              Write-Host "`r[$('#' * ($Seconds * 2))] 100% "
+              Write-Host ""
+          }
+
+          Show-Progress -Message "Installing .NET SDK" -Seconds 3
+
+          Show-Progress -Message "Restoring dependencies" -Seconds 4
+          dotnet restore TradePlatform.Api.csproj
+
+          Show-Progress -Message "Building project" -Seconds 4
+          dotnet build TradePlatform.Api.csproj -c Release --no-restore
+
+          Show-Progress -Message "Publishing application" -Seconds 5
           dotnet publish TradePlatform.Api.csproj `
             -c Release `
             -o publish `
             --runtime win-x64 `
             --no-self-contained `
-            /p:UseAppHost=false `
-            /p:PublishTrimmed=false `
-            /p:PublishSingleFile=false
+            /p:UseAppHost=false
 
-      - name: Zip publish folder
-        shell: pwsh
-        run: Compress-Archive -Path publish -DestinationPath publish.zip -Force
+          Show-Progress -Message "Creating deployment package" -Seconds 3
+          Compress-Archive -Path publish -DestinationPath publish.zip -Force
 
-      - name: Verify Inputs + Secrets
+      - name: Copy to EC2 with Progress
         shell: pwsh
         run: |
-          Write-Host "IIS_PATH exists: $($null -ne $env:WIN_IIS_PATH)"
-          Write-Host "APPPOOL exists: $($null -ne $env:WIN_IIS_APPPOOL)"
-          Write-Host "HOST exists: $($null -ne $env:WIN_EC2_HOST)"
-          Write-Host "USER exists: $($null -ne $env:WIN_EC2_USER)"
+          function Show-Progress {
+              param([string]$Message, [int]$Seconds = 5)
+              Write-Host ""
+              Write-Host "=== $Message ===" -ForegroundColor Cyan
+              for ($i = 1; $i -le $Seconds; $i++) {
+                  $percent = [int](($i / $Seconds) * 100)
+                  $bar = "#" * ($i * 2)
+                  $space = " " * (($Seconds - $i) * 2)
+                  Write-Host -NoNewline "`r[$bar$space] $percent% "
+                  Start-Sleep -Seconds 1
+              }
+              Write-Host "`r[$('#' * ($Seconds * 2))] 100% "
+              Write-Host ""
+          }
 
-      - name: Copy files to EC2 via WinRM
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
+          Show-Progress -Message "Copying package to EC2" -Seconds 5
 
-          Write-Host "Connecting to EC2 for file copy..."
+          $pass = $env:WIN_EC2_PASS
+          if (-not $pass) { $pass = $env:WIN_EC2_PASS_KEY }
 
-          $pass1 = $env:WIN_EC2_PASS
-          $pass2 = $env:WIN_EC2_PASS_KEY
-
-          if ($pass1) { $finalPass = $pass1 }
-          elseif ($pass2) { $finalPass = $pass2 }
-          else { throw "No EC2 password provided." }
-
-          $secure = ConvertTo-SecureString $finalPass -AsPlainText -Force
+          $secure = ConvertTo-SecureString $pass -AsPlainText -Force
           $cred = New-Object System.Management.Automation.PSCredential($env:WIN_EC2_USER, $secure)
 
           $session = New-PSSession `
@@ -112,28 +124,34 @@ jobs:
             Invoke-Command -Session $session -ScriptBlock {
               New-Item -ItemType Directory -Path "C:\deploy-temp" -Force | Out-Null
             }
-
             Copy-Item -Path publish.zip -Destination "C:\deploy-temp\publish.zip" -ToSession $session -Force
           }
           finally {
-            if ($session) { Remove-PSSession $session }
+            Remove-PSSession $session
           }
 
-      - name: Deploy on EC2 via WinRM
+      - name: Deploy on EC2 with Progress
         shell: pwsh
         run: |
-          $ErrorActionPreference = "Stop"
+          function Show-Progress {
+              param([string]$Message, [int]$Seconds = 5)
+              Write-Host ""
+              Write-Host "=== $Message ===" -ForegroundColor Cyan
+              for ($i = 1; $i -le $Seconds; $i++) {
+                  $percent = [int](($i / $Seconds) * 100)
+                  $bar = "#" * ($i * 2)
+                  $space = " " * (($Seconds - $i) * 2)
+                  Write-Host -NoNewline "`r[$bar$space] $percent% "
+                  Start-Sleep -Seconds 1
+              }
+              Write-Host "`r[$('#' * ($Seconds * 2))] 100% "
+              Write-Host ""
+          }
 
-          Write-Host "Starting remote deployment..."
+          $pass = $env:WIN_EC2_PASS
+          if (-not $pass) { $pass = $env:WIN_EC2_PASS_KEY }
 
-          $pass1 = $env:WIN_EC2_PASS
-          $pass2 = $env:WIN_EC2_PASS_KEY
-
-          if ($pass1) { $finalPass = $pass1 }
-          elseif ($pass2) { $finalPass = $pass2 }
-          else { throw "No EC2 password provided." }
-
-          $secure = ConvertTo-SecureString $finalPass -AsPlainText -Force
+          $secure = ConvertTo-SecureString $pass -AsPlainText -Force
           $cred = New-Object System.Management.Automation.PSCredential($env:WIN_EC2_USER, $secure)
 
           $session = New-PSSession `
@@ -146,35 +164,27 @@ jobs:
             Invoke-Command -Session $session -ArgumentList $env:WIN_IIS_PATH, $env:WIN_IIS_APPPOOL -ScriptBlock {
               param($LIVE, $APPPOOL)
 
-              $ErrorActionPreference = "Stop"
+              Show-Progress -Message "Stopping IIS AppPool '$APPPOOL'" -Seconds 4
+              Import-Module WebAdministration
+              Stop-WebAppPool -Name $APPPOOL
+              Start-Sleep -Seconds 2
 
-              $TEMP   = "C:\deploy-temp\publish"
-              $BACKUP = "C:\deploy-backup"
-              $ZIP    = "C:\deploy-temp\publish.zip"
-
-              Remove-Item -Path $TEMP -Recurse -Force -ErrorAction SilentlyContinue
+              Show-Progress -Message "Deploying new version" -Seconds 6
+              $TEMP = "C:\deploy-temp\publish"
+              $ZIP  = "C:\deploy-temp\publish.zip"
               Expand-Archive -Path $ZIP -DestinationPath "C:\deploy-temp" -Force
 
-              Import-Module WebAdministration
-
-              Stop-WebAppPool -Name $APPPOOL
-              Start-Sleep -Seconds 3
-
-              Get-Process w3wp -ErrorAction SilentlyContinue | Stop-Process -Force
-
-              Remove-Item -Path $BACKUP -Recurse -Force -ErrorAction SilentlyContinue
-              if (Test-Path $LIVE) { Move-Item -Path $LIVE -Destination $BACKUP -Force }
-
+              if (Test-Path $LIVE) {
+                Remove-Item -Path $LIVE -Recurse -Force
+              }
               Move-Item -Path $TEMP -Destination $LIVE -Force
 
+              Show-Progress -Message "Starting IIS AppPool '$APPPOOL'" -Seconds 4
               Start-WebAppPool -Name $APPPOOL
-              Start-Sleep -Seconds 10
 
-              Remove-Item -Path $ZIP -Force -ErrorAction SilentlyContinue
-
-              Write-Host "Deployment successful."
+              Write-Host "=== Deployment Completed Successfully ===" -ForegroundColor Green
             }
           }
           finally {
-            if ($session) { Remove-PSSession $session }
+            Remove-PSSession $session
           }
