@@ -1,5 +1,6 @@
 bin/
 obj/
+publish/
 appsettings.Development.json
 appsettings.Production.json
 Properties/launchSettings.json
@@ -15,3 +16,6 @@ secrets.json
 
 node_modules/
 /appsettings.json
+
+
+/publish
