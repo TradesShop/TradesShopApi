@@ -1,141 +1,106 @@
-name: Reusable Service Deployment
+name: Reusable Backend Deployment
 
 on:
   workflow_call:
     inputs:
-      IIS_PATH:
+      environment:
         required: true
         type: string
-      IIS_APPPOOL:
+      target_path:
         required: true
         type: string
-
-    secrets:
-      WIN_EC2_HOST:
+      app_pool_name:
         required: true
-      WIN_EC2_USER:
-        required: true
-      WIN_EC2_PASS:
-        required: false
-      WIN_EC2_PASS_KEY:
-        required: false
-
-      WIN_IIS_PATH_STAGE:
-        required: false
-      WIN_IIS_APPPOOL_STAGE:
-        required: false
-      WIN_IIS_PATH_LIVE:
-        required: false
-      WIN_IIS_APPPOOL_LIVE:
-        required: false
+        type: string
 
 jobs:
   deploy:
-    runs-on: windows-latest
-
-    env:
-      WIN_IIS_PATH: ${{ secrets[inputs.IIS_PATH] }}
-      WIN_IIS_APPPOOL: ${{ secrets[inputs.IIS_APPPOOL] }}
-
-      WIN_EC2_HOST: ${{ secrets.WIN_EC2_HOST }}
-      WIN_EC2_USER: ${{ secrets.WIN_EC2_USER }}
-      WIN_EC2_PASS: ${{ secrets.WIN_EC2_PASS }}
-      WIN_EC2_PASS_KEY: ${{ secrets.WIN_EC2_PASS_KEY }}
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.environment }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v5
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "8.0.x"
+          dotnet-version: '8.0.x'
 
-      - name: Build & Publish
-        shell: pwsh
+      - name: Restore dependencies
+        run: dotnet restore TradePlatform.Api.csproj
+
+      - name: Build and Publish .NET App
         run: |
-          dotnet publish TradePlatform.Api.csproj `
-            -c Release `
-            -o publish `
-            --runtime win-x64 `
-            --no-self-contained `
-            /p:UseAppHost=false `
-            /p:IncludeNativeLibrariesForSelfExtract=true
+          dotnet publish TradePlatform.Api.csproj \
+            -c Release \
+            -o publish \
+            --runtime win-x64 \
+            --self-contained false \
+            /p:UseAppHost=false \
+            /p:PublishTrimmed=false \
+            /p:PublishSingleFile=false
 
-          Compress-Archive -Path publish -DestinationPath publish.zip -Force
-
-      - name: Copy to EC2
-        shell: pwsh
+      - name: Strip Config Files & Create Zip
         run: |
-          $pass = $env:WIN_EC2_PASS
-          if (-not $pass) { $pass = $env:WIN_EC2_PASS_KEY }
+          # Remove local appsettings & web.config so server configs stay untouched
+          rm -f publish/appsettings*.json
+          rm -f publish/web.config
+          rm -f publish/.env
+          
+          cd publish
+          zip -r ../backend.zip .
 
-          $secure = ConvertTo-SecureString $pass -AsPlainText -Force
-          $cred = New-Object System.Management.Automation.PSCredential($env:WIN_EC2_USER, $secure)
-
-          $session = New-PSSession `
-            -ComputerName $env:WIN_EC2_HOST `
-            -Credential $cred `
-            -UseSSL `
-            -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)
-
-          try {
-            Invoke-Command -Session $session -ScriptBlock {
-              New-Item -ItemType Directory -Path "C:\deploy-temp" -Force | Out-Null
-            }
-
-            Copy-Item -Path publish.zip -Destination "C:\deploy-temp\publish.zip" -ToSession $session -Force
-          }
-          finally {
-            Remove-PSSession $session
-          }
-
-      - name: Deploy on EC2 (Safe Config-Protected Deployment)
-        shell: pwsh
+      - name: Transfer backend.zip via Native SCP
+        env:
+          SSH_KEY: ${{ secrets.AWS_SSH_KEY }}
+          SERVER_IP: ${{ secrets.AWS_SERVER_IP }}
+          SERVER_USER: ${{ secrets.AWS_SERVER_USER }}
         run: |
-          $pass = $env:WIN_EC2_PASS
-          if (-not $pass) { $pass = $env:WIN_EC2_PASS_KEY }
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 backend.zip "${SERVER_USER}@${SERVER_IP}:C:/Temp/backend.zip"
 
-          $secure = ConvertTo-SecureString $pass -AsPlainText -Force
-          $cred = New-Object System.Management.Automation.PSCredential($env:WIN_EC2_USER, $secure)
+      - name: Deploy to IIS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AWS_SERVER_IP }}
+          username: ${{ secrets.AWS_SERVER_USER }}
+          key: ${{ secrets.AWS_SSH_KEY }}
+          port: 22
+          script: |
+            Import-Module WebAdministration
 
-          $session = New-PSSession `
-            -ComputerName $env:WIN_EC2_HOST `
-            -Credential $cred `
-            -UseSSL `
-            -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)
+            $target = "${{ inputs.target_path }}"
+            $previousPath = "${{ inputs.target_path }}_v_previous"
+            $appPool = "${{ inputs.app_pool_name }}"
+            $zipPath = "C:\Temp\backend.zip"
 
-          try {
-            Invoke-Command -Session $session -ArgumentList $env:WIN_IIS_APPPOOL -ScriptBlock {
-              param($APPPOOL)
-              Import-Module WebAdministration
-              Stop-WebAppPool -Name $APPPOOL
+            # 1. Stop IIS AppPool
+            Write-Host "Stopping IIS AppPool: $appPool..."
+            Stop-WebAppPool -Name $appPool -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 3
+
+            # 2. Manage Backup (_v_previous)
+            if (Test-Path $target) {
+              Write-Host "Archiving current build to $previousPath..."
+              if (Test-Path $previousPath) { Remove-Item $previousPath -Recurse -Force }
+              Copy-Item -Path $target -Destination $previousPath -Recurse -Force
+            } else {
+              New-Item -ItemType Directory -Path $target -Force | Out-Null
             }
 
-            Invoke-Command -Session $session -ArgumentList $env:WIN_IIS_PATH -ScriptBlock {
-              param($LIVE)
+            # 3. Clean target folder while preserving server web.config & appsettings
+            Get-ChildItem $target -Force |
+              Where-Object { $_.Name -notin @("web.config", "appsettings.json", "appsettings.Production.json", "appsettings.Development.json", ".env") } |
+              Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
-              $ZIP = "C:\deploy-temp\publish.zip"
-              $TEMP = "C:\deploy-temp\publish"
+            # 4. Extract release package
+            Expand-Archive -Path $zipPath -DestinationPath $target -Force
+            Remove-Item -Path $zipPath -Force
 
-              Expand-Archive -Path $ZIP -DestinationPath "C:\deploy-temp" -Force
-
-              # Remove old binaries only
-              Get-ChildItem -Path $LIVE -Include *.dll, *.exe, *.pdb -Recurse | Remove-Item -Force
-
-              # Copy new files but protect config files
-              Copy-Item -Path "$TEMP\*" -Destination $LIVE -Recurse -Force `
-                -Exclude "appsettings.json","appsettings.Production.json","web.config"
-            }
-
-            Invoke-Command -Session $session -ArgumentList $env:WIN_IIS_APPPOOL -ScriptBlock {
-              param($APPPOOL)
-              Import-Module WebAdministration
-              Start-WebAppPool -Name $APPPOOL
-            }
-
-            Write-Output "=== Deployment Completed Successfully ==="
-          }
-          finally {
-            Remove-PSSession $session
-          }
+            # 5. Restart IIS AppPool
+            Write-Host "Starting IIS AppPool: $appPool..."
+            Start-WebAppPool -Name $appPool
+            Write-Host "Backend deployment completed successfully!"
