@@ -16,6 +16,7 @@ namespace TradePlatform.Api.Controllers
             _plansService = plansService;
         }
 
+
         [HttpGet]
         public async Task<IActionResult> GetActivePlans()
         {
