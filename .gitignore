@@ -19,3 +19,12 @@ node_modules/
 
 
 /publish
+
+appsettings.Production.json
+appsettings.Development.json
+appsettings.*.json
+out/
+bin/
+obj/
+*.dll
+*.zip
