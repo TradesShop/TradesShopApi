@@ -28,7 +28,6 @@ public class BundlesController : BaseController
 	{
 		return ApiOk(await _adminService.GetAllBundlesAsync());
 	}
-
 	[HttpPost("checkout")]
 	public async Task<IActionResult> CreateCheckoutSession([FromBody] BundleSelectDto req, CancellationToken cancellationToken)
 	{
