@@ -43,8 +43,11 @@ public class UserSubscriptionService : IUserSubscriptionService
 		_stripeService = stripeService;
 		_stripeClient = stripeClient;
 	}
-
-	public async Task<SubscriptionViewDto> GetActiveSubscriptionForUserAsync(Guid user_id, string plan_type)
+    public async Task SubscriptionCancelRequestAsync(SubscriptionCancelReqDto model)
+	{
+        await _subscriptionsRepository.SubscriptionCancelRequestAsync(model);
+    }
+    public async Task<SubscriptionViewDto> GetActiveSubscriptionForUserAsync(Guid user_id, string plan_type)
 	{
 		return await _subscriptionsRepository.GetActiveSubscriptionForUserAsync(user_id, plan_type);
 	}
@@ -200,7 +203,31 @@ public class UserSubscriptionService : IUserSubscriptionService
 		await _subscriptionsRepository.SubscriptionCancelAsync(dto);
 	}
 
-	public async Task SaveSubscriptionUpsertAsync(Subscription? subscription, Guid user_id, Guid plan_price_id, Dictionary<string, string> metadata, Guid? subscription_id, Event? stripeEvent, string? action = "created", string? actor = "user", string? source = "api")
+    public async Task SubscriptionUpdateFromStripeWebhook(Subscription? subscription, Guid user_id, Dictionary<string, string> metadata, Event? stripeEvent)
+    {
+        SubscriptionItem subscriptionItem = subscription?.Items?.Data?.FirstOrDefault();
+        string activePriceId = subscription.Items?.Data?.FirstOrDefault()?.Price?.Id;
+        SubscriptionEventProcessDto dto = new SubscriptionEventProcessDto
+        {           
+            stripe_subscription_id = subscription?.Id,
+            stripe_price_id = activePriceId,           
+            status = (subscription?.Status ?? "active"),
+            user_id = user_id,
+            trial_start = subscription?.TrialStart,
+            trial_end = subscription?.TrialEnd,
+            current_period_start = subscriptionItem?.CurrentPeriodStart,
+            current_period_end = subscriptionItem?.CurrentPeriodEnd,
+            billing_cycle_anchor = subscription?.BillingCycleAnchor,
+            cancel_at_period_end = subscription?.CancelAtPeriodEnd,
+            metadata_json = JsonConvert.SerializeObject(metadata),
+            stripe_event_id = (stripeEvent?.Id ?? null),
+            event_type = (stripeEvent?.Type ?? ("stripe_schedule.subscription.stripe")),
+            actor = "stripe_schedule",
+            source = "stripe"
+        };
+        await _subscriptionsRepository.SubscriptionUpdateFromStripeWebhook(dto);
+    }
+    public async Task SaveSubscriptionUpsertAsync(Subscription? subscription, Guid user_id, Guid plan_price_id, Dictionary<string, string> metadata, Guid? subscription_id, Event? stripeEvent, string? action = "created", string? actor = "user", string? source = "api")
 	{
 		SubscriptionItem subscriptionItem = subscription?.Items?.Data?.FirstOrDefault();
 		SubscriptionEventProcessDto dto = new SubscriptionEventProcessDto
@@ -421,8 +448,9 @@ public class UserSubscriptionService : IUserSubscriptionService
 			if (activeSubs.cancel_at_period_end || stripeSubs.CancelAtPeriodEnd)
 			{
 				await subscriptionService.UpdateAsync(activeSubs.stripe_subscription_id, new SubscriptionUpdateOptions
-				{
-					CancelAtPeriodEnd = false,
+				{                    
+                    ProrationBehavior = "none",
+                    CancelAtPeriodEnd = false,
 					Metadata = BuildAuditMetadata(activeSubs.id, user_id, newPlan)
 				});
 			}
@@ -441,7 +469,8 @@ public class UserSubscriptionService : IUserSubscriptionService
 			await CancelSubsPendingIfExistsAsync(user_id, activeSubs);
 			await subscriptionService.UpdateAsync(activeSubs.stripe_subscription_id, new SubscriptionUpdateOptions
 			{
-				CancelAtPeriodEnd = false,
+				ProrationBehavior = "none",
+                CancelAtPeriodEnd = false,
 				Metadata = BuildAuditMetadata(activeSubs.id, user_id, currentPlan)
 			});
 		}
@@ -604,14 +633,16 @@ public class UserSubscriptionService : IUserSubscriptionService
 			});
 			currentStripeSub = await subscriptionService.GetAsync(stripe_subscription_id);
 		}
-		Subscription updatedSubscription = ((!(currentStripeSub.Status == "canceled")) ? (await subscriptionService.UpdateAsync(stripe_subscription_id, new SubscriptionUpdateOptions
-		{
-			CancelAtPeriodEnd = true,
-			Metadata = metadata
-		})) : (await subscriptionService.UpdateAsync(stripe_subscription_id, new SubscriptionUpdateOptions
-		{
-			Metadata = metadata
-		})));
+		Subscription updatedSubscription = ((!(currentStripeSub.Status == "canceled")) 
+			? (await subscriptionService.UpdateAsync(stripe_subscription_id, new SubscriptionUpdateOptions
+			{
+				CancelAtPeriodEnd = true,
+				ProrationBehavior = "none",
+				Metadata = metadata
+			})) : (await subscriptionService.UpdateAsync(stripe_subscription_id, new SubscriptionUpdateOptions
+			{
+				Metadata = metadata
+			})));
 		SubscriptionStatus currentStatus = StripeStatusMapper.MapStripeStatus(sub.status);
 		SubscriptionStateMachine sm = new SubscriptionStateMachine(currentStatus);
 		string targetStatusString = (updatedSubscription.CancelAtPeriodEnd ? "cancel_scheduled" : updatedSubscription.Status);
@@ -665,7 +696,7 @@ public class UserSubscriptionService : IUserSubscriptionService
 		Subscription updatedSubscription = ((!(stripeSub.Status == "canceled")) ? (await subscriptionService.CancelAsync(stripe_subscription_id, new SubscriptionCancelOptions
 		{
 			InvoiceNow = false,
-			Prorate = false
+			Prorate = false,
 		})) : (await subscriptionService.UpdateAsync(stripe_subscription_id, new SubscriptionUpdateOptions
 		{
 			Metadata = metadata
@@ -722,14 +753,17 @@ public class UserSubscriptionService : IUserSubscriptionService
 		{
 			updatedSubscription = await subscriptionService.UpdateAsync(_subscription.Id, new SubscriptionUpdateOptions
 			{
-				CancelAtPeriodEnd = false
+                ProrationBehavior = "none",
+                CancelAtPeriodEnd = false
 			});
 		}
 		else
 		{
-			updatedSubscription = ((!_subscription.CancelAt.HasValue) ? _subscription : (await subscriptionService.UpdateAsync(_subscription.Id, new SubscriptionUpdateOptions
+			updatedSubscription = ((!_subscription.CancelAt.HasValue) 
+				? _subscription : (await subscriptionService.UpdateAsync(_subscription.Id, new SubscriptionUpdateOptions
 			{
-				CancelAt = null
+                ProrationBehavior = "none",
+                CancelAt = null
 			})));
 		}
 		return new SubscriptionCancelResponse
@@ -786,14 +820,16 @@ public class UserSubscriptionService : IUserSubscriptionService
 		{
 			updatedSubscription = await subscriptionService.UpdateAsync(stripe_subscription_id, new SubscriptionUpdateOptions
 			{
-				CancelAtPeriodEnd = false
+                ProrationBehavior = "none",
+                CancelAtPeriodEnd = false
 			});
 		}
 		else
 		{
 			updatedSubscription = ((!subscription.CancelAt.HasValue) ? subscription : (await subscriptionService.UpdateAsync(stripe_subscription_id, new SubscriptionUpdateOptions
 			{
-				CancelAt = null
+                ProrationBehavior = "none",
+                CancelAt = null
 			})));
 		}
 		return new SubscriptionCancelResponse
@@ -873,7 +909,8 @@ public class UserSubscriptionService : IUserSubscriptionService
 						}
 					},
 					EndBehavior = "release",
-					Metadata = metadata,
+                    ProrationBehavior = "none",
+                    Metadata = metadata,
 					Phases = new List<SubscriptionSchedulePhaseOptions>
 					{
 						new SubscriptionSchedulePhaseOptions
@@ -994,8 +1031,10 @@ public class UserSubscriptionService : IUserSubscriptionService
 		})).Id : stripeSubscription.Schedule.Id);
 		await scheduleService.UpdateAsync(stripe_schedule_id, new SubscriptionScheduleUpdateOptions
 		{
-			EndBehavior = "cancel",
-			Metadata = metadata,
+            
+            EndBehavior = "cancel",
+            ProrationBehavior = "none",
+            Metadata = metadata,
 			Phases = new List<SubscriptionSchedulePhaseOptions>
 			{
 				new SubscriptionSchedulePhaseOptions

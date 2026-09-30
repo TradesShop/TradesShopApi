@@ -60,4 +60,16 @@ public class AdminSubscriptionsController : BaseController
 		Guid effectiveUserId = req.target_user_id;
 		return ApiOk(await _subsService.SetSubscriptionAutoRenewal(effectiveUserId, req.plan_price_id, req.stripe_subscription_id));
 	}
+    [HttpPost("cancel-without-refund")]
+    public async Task<IActionResult> SubscriptionCancelRequestAsync([FromBody] SubscriptionCancelReqDto anysubs)
+    {
+        if (anysubs == null || anysubs.target_user_id == Guid.Empty)
+        {
+            return ApiError("Target user ID is required.");
+        }
+        anysubs.user_id = anysubs.target_user_id;
+		await _subsService.SubscriptionCancelRequestAsync(anysubs);
+        return ApiOk();
+    }
+    
 }

@@ -214,44 +214,62 @@ public class StripeWebhookService : IStripeWebhookService
 			return;
 		}
 		_logger.LogInformation("Processing subscription event {EventType} for subscription {SubscriptionId}", stripeEvent.Type, stripeSubscription.Id);
-		Dictionary<string, string> subs_metadata = stripeSubscription.Metadata;
-		if (!subs_metadata.TryGetValue("user_id", out var userIdStr) || !Guid.TryParse(userIdStr, out var user_id) || !subs_metadata.TryGetValue("subscription_id", out var subIdStr) || !Guid.TryParse(subIdStr, out var subscription_id) || !subs_metadata.TryGetValue("plan_price_id", out var priceIdStr) || !Guid.TryParse(priceIdStr, out var plan_price_id))
-		{
-			_logger.LogError("Required metadata missing or invalid for subscription {SubscriptionId}", stripeSubscription.Id);
-			return;
-		}
-		if (!subs_metadata.TryGetValue("entity_type_id", out var etId) || !int.TryParse(etId, out var _))
-		{
-		}
-		subs_metadata.GetValueOrDefault("entity_type", "subscription");
-		if (!subs_metadata.TryGetValue("entity_id", out var eId) || !Guid.TryParse(eId, out var _))
-		{
-			_ = Guid.Empty;
-		}
-		SubscriptionViewDto existingSubscription = await _subscriptionsRepo.GetByStripeSubscriptionIdAsync(stripeSubscription.Id);
-		await _subscriptionService.SaveSubscriptionUpsertAsync(stripeSubscription, user_id, plan_price_id, subs_metadata, subscription_id, stripeEvent, "updated", actor, source);
-		if (stripeEvent.Type == "customer.subscription.updated")
-		{
-			bool newAutoRenew = !stripeSubscription.CancelAtPeriodEnd;
-			bool autoRenewChanged = existingSubscription != null && existingSubscription.auto_renew != newAutoRenew;
-			subscriptionpending_view scheduledSubs = await _subscriptionsRepo.ScheduledSubscriptionsViewAsync(new subscriptionpending_req
-			{
-				search_mode = "BY_SUBSCRIPTION",
-				user_id = user_id,
-				current_subscription_id = subscription_id
-			});
-			if (scheduledSubs != null && scheduledSubs.status == "PENDING")
-			{
-				string currentStripePrice = stripeSubscription.Items.Data.FirstOrDefault()?.Price?.Id;
-				if (currentStripePrice == scheduledSubs.new_stripe_price_id)
-				{
-					await _subscriptionsRepo.subscriptionpending_update_async(new subscriptionpending_upd
-					{
-						current_subscription_id = subscription_id,
-						status = "COMPLETED"
-					});
-				}
-			}
+        // 1. Fetch pre-update record from database
+        SubscriptionViewDto existingSubscription = await _subscriptionsRepo.GetByStripeSubscriptionIdAsync(stripeSubscription.Id);
+        // 2. Extract metadata with DB fallbacks
+        Dictionary<string, string> subs_metadata = stripeSubscription.Metadata ?? new Dictionary<string, string>();
+        if (!subs_metadata.TryGetValue("user_id", out var userIdStr) || !Guid.TryParse(userIdStr, out var user_id))
+        {
+            if (existingSubscription == null)
+            {
+                _logger.LogError("Required metadata 'user_id' missing and record not found in DB for subscription {SubscriptionId}", stripeSubscription.Id);
+                return;
+            }
+            user_id = existingSubscription.user_id;
+        }
+        if (!subs_metadata.TryGetValue("subscription_id", out var subIdStr) || !Guid.TryParse(subIdStr, out var subscription_id))
+        {
+            if (existingSubscription == null)
+            {
+                _logger.LogError("Required metadata 'subscription_id' missing and record not found in DB for subscription {SubscriptionId}", stripeSubscription.Id);
+                return;
+            }
+            subscription_id = existingSubscription.id;
+        }
+        string currentStripePrice = stripeSubscription.Items.Data.FirstOrDefault()?.Price?.Id;       
+        // 3. Perform Database Upsert
+        await _subscriptionService.SubscriptionUpdateFromStripeWebhook(stripeSubscription, user_id, subs_metadata, stripeEvent);
+        //Guid activePlanPriceId = plan_price_id;     
+
+        // await _subscriptionService.SaveSubscriptionUpsertAsync(stripeSubscription, user_id, plan_price_id, subs_metadata, subscription_id, stripeEvent, "updated", actor, source);
+        if (stripeEvent.Type == "customer.subscription.updated" || stripeEvent.Type == "customer.subscription.pending_update_applied")
+		{            
+            // Check if pending transition occurred
+            subscriptionpending_view scheduledSubs = await _subscriptionsRepo.ScheduledSubscriptionsViewAsync(new subscriptionpending_req
+            {
+                search_mode = "BY_SUBSCRIPTION",
+                user_id = user_id,
+                current_subscription_id = subscription_id
+            });
+           
+            // 3. Check if a pending transition just occurred
+            if (scheduledSubs != null && scheduledSubs.status == "PENDING")
+            {
+                if (currentStripePrice == scheduledSubs.new_stripe_price_id || stripeEvent.Type == "customer.subscription.pending_update_applied")
+                {                    
+                    // Mark pending status as COMPLETED
+                    await _subscriptionsRepo.subscriptionpending_update_async(new subscriptionpending_upd
+                    {
+                        current_subscription_id = subscription_id,
+                        status = "COMPLETED"
+                    });
+
+                    _logger.LogInformation("Completed pending schedule for subscription {SubscriptionId}", subscription_id);
+                }
+            }
+            bool newAutoRenew = !stripeSubscription.CancelAtPeriodEnd;
+			bool autoRenewChanged = existingSubscription != null && existingSubscription.auto_renew != newAutoRenew;			
+			/*This logic is checked and its working fine, no issue found,ok*/
 			if (autoRenewChanged)
 			{
 				existingSubscription.auto_renew = newAutoRenew;
@@ -264,15 +282,7 @@ public class StripeWebhookService : IStripeWebhookService
 					await _backgroundEmailQueue.SendSubscriptionAutoRenewalOffEmailAsync(existingSubscription, EventType.SubscriptionAutoNewOff);
 				}
 			}
-		}
-		if (stripeEvent.Type == "customer.subscription.pending_update_applied")
-		{
-			await _subscriptionsRepo.subscriptionpending_update_async(new subscriptionpending_upd
-			{
-				current_subscription_id = subscription_id,
-				status = "COMPLETED"
-			});
-		}
+		}			
 	}
 
 	private async Task HandleSubscriptionCancelUpdate(Subscription stripeSubscription, Event stripeEvent)
@@ -285,9 +295,13 @@ public class StripeWebhookService : IStripeWebhookService
 			return;
 		}
 		_logger.LogInformation("Processing subscription event {EventType} for subscription {SubscriptionId}", stripeEvent.Type, stripeSubscription.Id);
-		Dictionary<string, string> subs_metadata = stripeSubscription.Metadata;
-		Guid subscription_id = Guid.Parse(subs_metadata["subscription_id"]);
-		Guid user_id = Guid.Parse(subs_metadata["user_id"]);
+        Dictionary<string, string> subs_metadata = stripeSubscription.Metadata;
+        if (!subs_metadata.TryGetValue("subscription_id", out var subIdStr) || !Guid.TryParse(subIdStr, out var subscription_id) ||
+		!subs_metadata.TryGetValue("user_id", out var userIdStr) || !Guid.TryParse(userIdStr, out var user_id))
+        {
+            _logger.LogError("Required metadata missing or invalid for canceled subscription {SubscriptionId}", stripeSubscription.Id);
+            return;
+        };    
 		subscriptionpending_view subs_pending = await _subscriptionsRepo.ScheduledSubscriptionsViewAsync(new subscriptionpending_req
 		{
 			search_mode = "BY_SUBSCRIPTION",
@@ -295,8 +309,21 @@ public class StripeWebhookService : IStripeWebhookService
 			current_subscription_id = subscription_id
 		});
 		await _subscriptionService.SaveSubscriptionCancelAsync(stripeSubscription, subs_metadata, subscription_id, stripeEvent, source, actor);
-		SubscriptionViewDto updatedSubscription = await _subscriptionsRepo.GetByStripeSubscriptionIdAsync(stripeSubscription.Id);
-		await _backgroundEmailQueue.SendSubsCancellationConfirmationEmail(updatedSubscription);
+        // 5. Send cancellation email safely
+        try
+        {
+            SubscriptionViewDto updatedSubscription = await _subscriptionsRepo.GetByStripeSubscriptionIdAsync(stripeSubscription.Id);
+            if (updatedSubscription != null)
+            {
+                await _backgroundEmailQueue.SendSubsCancellationConfirmationEmail(updatedSubscription);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send cancellation confirmation email for subscription {SubscriptionId}", stripeSubscription.Id);
+        }
+        // SubscriptionViewDto updatedSubscription = await _subscriptionsRepo.GetByStripeSubscriptionIdAsync(stripeSubscription.Id);
+	    //await _backgroundEmailQueue.SendSubsCancellationConfirmationEmail(updatedSubscription);
 		if (subs_pending != null)
 		{
 			string pending_status;

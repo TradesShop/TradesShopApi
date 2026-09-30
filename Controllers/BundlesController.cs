@@ -1,7 +1,8 @@
+using Microsoft.AspNetCore.Mvc;
+using Stripe;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
 using TradePlatform.Api.DTOs.Bundles;
 using TradePlatform.Api.Models;
 using TradePlatform.Api.Services.Bundles;
@@ -27,7 +28,6 @@ public class BundlesController : BaseController
 	{
 		return ApiOk(await _adminService.GetAllBundlesAsync());
 	}
-
 	[HttpPost("checkout")]
 	public async Task<IActionResult> CreateCheckoutSession([FromBody] BundleSelectDto req, CancellationToken cancellationToken)
 	{
@@ -37,4 +37,6 @@ public class BundlesController : BaseController
 		Guid effectiveUserId = ResolveEffectiveUser(callerId, callerType, req?.target_user_id);
 		return ApiOk(await _purchaseService.CreateCheckoutSessionAsync(effectiveUserId, req.bundle_id, req.bundle_price_id, cancellationToken));
 	}
+    
+
 }

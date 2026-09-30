@@ -24,8 +24,22 @@ public class SubscriptionsRepository : ISubscriptionsRepository
 		_context = context;
 		_identityService = identityService;
 	}
+    public async Task SubscriptionCancelRequestAsync(SubscriptionCancelReqDto model)
+    {
+        using IDbConnection conn = _context.CreateOpenConnection();
+        var param = new
+        {
+             id = model.id
+            ,is_refund_requested = model.is_refund_requested
+            ,cancellation_reason = model.cancellation_reason
+            ,actor = model.actor
+            ,source = model.source
+            ,metadata_json = model.metadata_json
+        };
+        await conn.ExecuteAsync("[dbo].[usp_subscription_cancel_request]", param);
+    }
 
-	public async Task SubscriptionCancelAsync(SubscriptionEventProcessDto model)
+    public async Task SubscriptionCancelAsync(SubscriptionEventProcessDto model)
 	{
 		using IDbConnection conn = _context.CreateOpenConnection();
 		DynamicParameters parameters = new DynamicParameters();
@@ -40,9 +54,30 @@ public class SubscriptionsRepository : ISubscriptionsRepository
 		parameters.Add("@source", model.source);
 		CommandType? commandType = CommandType.StoredProcedure;
 		await conn.ExecuteAsync("[dbo].[usp_subscription_cancel]", parameters, null, null, commandType);
+	}    
+    public async Task SubscriptionUpdateFromStripeWebhook(SubscriptionEventProcessDto model)
+	{
+		using IDbConnection conn = _context.CreateOpenConnection();
+		DynamicParameters parameters = new DynamicParameters();			
+		parameters.Add("@stripe_subscription_id", model.stripe_subscription_id);
+		parameters.Add("@stripe_price_id", model.stripe_price_id);
+		parameters.Add("@status", model.status);
+		parameters.Add("@user_id", model.user_id);
+		parameters.Add("@trial_start", model.trial_start);
+		parameters.Add("@trial_end", model.trial_end);
+		parameters.Add("@current_period_start", model.current_period_start);
+		parameters.Add("@current_period_end", model.current_period_end);
+		parameters.Add("@billing_cycle_anchor", model.billing_cycle_anchor);
+		parameters.Add("@cancel_at_period_end", model.cancel_at_period_end);
+		parameters.Add("@metadata_json", model.metadata_json);
+		parameters.Add("@stripe_event_id", model.stripe_event_id);
+		parameters.Add("@event_type", model.event_type);
+		parameters.Add("@actor", model.actor);
+		parameters.Add("@source", model.source);
+		CommandType? commandType = CommandType.StoredProcedure;
+		await conn.ExecuteAsync("[dbo].[usp_subscription_update_from_stripe_webhook]", parameters, null, null, commandType);
 	}
-
-	public async Task SubscriptionUpsertAsync(SubscriptionEventProcessDto model)
+    public async Task SubscriptionUpsertAsync(SubscriptionEventProcessDto model)
 	{
 		using IDbConnection conn = _context.CreateOpenConnection();
 		DynamicParameters parameters = new DynamicParameters();
@@ -222,7 +257,6 @@ public class SubscriptionsRepository : ISubscriptionsRepository
 		CommandType? commandType = CommandType.StoredProcedure;
 		return await conn.QueryFirstOrDefaultAsync<subscriptionpending_view>("dbo.usp_subscription_pending_update", param, null, null, commandType);
 	}
-
 	public async Task<IEnumerable<subscriptionpending_view>> ScheduledSubscriptionsAllAsync(subscriptionpending_req scpreq)
 	{
 		using IDbConnection conn = _context.CreateOpenConnection();

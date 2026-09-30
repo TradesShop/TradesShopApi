@@ -17,4 +17,5 @@ public interface ICreditRepository
 	Task<CreditTransactionsHistoryResult> MyCreditTranHistoryAsync(credit_history_request crdh_req);
 
 	Task<CreditOrdersListResult> GetCreditOrdersListAsync(CreditOrdersSearch cosDto);
+	Task CreditOrderUpdateAsync(CreditOrderUpdateDto couReq);
 }
