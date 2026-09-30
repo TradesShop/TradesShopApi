@@ -24,31 +24,18 @@ using TradePlatform.Api.Services.Subscriptions;
 public class StripeWebhookService : IStripeWebhookService
 {
 	private readonly ILogger<StripeWebhookService> _logger;
-
 	private readonly IStripeEventsRepository _eventsRepo;
-
 	private readonly ISubscriptionsRepository _subscriptionsRepo;
-
 	private readonly ITdsInvoiceRepository _invoicesRepo;
-
 	private readonly IPaymentsRepository _payments;
-
 	private readonly IPlansRepository _plansRepository;
-
 	private readonly ICreditService _creditService;
-
 	private readonly IBundlePurchaseService _bundlePurchase;
-
 	private readonly IBackgroundEmailQueue _backgroundEmailQueue;
-
 	private readonly IUserSubscriptionService _subscriptionService;
-
 	private readonly InvoiceService _invoiceService;
-
 	private readonly PaymentIntentService _paymentIntentService;
-
 	private readonly IRefundRepository _refundRepo;
-
 	private readonly StripeClient _stripeClient;
 
 	public StripeWebhookService(ILogger<StripeWebhookService> logger, IStripeEventsRepository eventsRepo, ISubscriptionsRepository subscriptionsRepo, ITdsInvoiceRepository invoicesRepo, IPaymentsRepository payments, ICreditService creditService, IBundlePurchaseService bundlePurchase, IPlansRepository plansRepository, IUserSubscriptionService subscriptionService, PaymentIntentService paymentIntentService, IRefundRepository refundRepo, IBackgroundEmailQueue backgroundEmailQueue, StripeClient stripeClient)
