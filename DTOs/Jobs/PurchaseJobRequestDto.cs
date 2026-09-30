@@ -1,9 +1,10 @@
-﻿namespace TradePlatform.Api.DTOs.Jobs
+using System;
+
+namespace TradePlatform.Api.DTOs.Jobs;
+
+public class PurchaseJobRequestDto
 {
-    public class PurchaseJobRequestDto
-    {
-        public Guid  id{ get; set; }
-        public Guid user_id { get; set; }
-    }
-    
+	public Guid id { get; set; }
+
+	public Guid user_id { get; set; }
 }

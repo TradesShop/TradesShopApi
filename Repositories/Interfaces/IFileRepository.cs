@@ -1,27 +1,19 @@
-﻿using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using Microsoft.VisualBasic.FileIO;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using TradePlatform.Api.DTOs;
 using TradePlatform.Api.DTOs.Files;
 using TradePlatform.Api.Models;
 
-namespace TradePlatform.Api.Repositories.Interfaces
+namespace TradePlatform.Api.Repositories.Interfaces;
+
+public interface IFileRepository
 {
-    public interface IFileRepository
-    {
-        Task<(uFile file, uFilelink link)> InsertFileWithLinkAsync(
-            string file_name,
-            string file_url,
-            string file_type,
-            int size_kb,
-            int entity_type,
-            Guid entity_id,
-            string upload_type,
-            string work_stage,
-            bool is_primary
-        );
+	Task<(uFile file, uFilelink link)> InsertFileWithLinkAsync(FileUploadRequestDto fu_req);
 
-        Task<IEnumerable<UploadFilesDto>> GetUploadFilesAsync(FilesGetRequestDto fgrDto);
-        Task UpdateDescriptionAsync(Guid fileId, string description);
+	Task<IEnumerable<UploadFilesDto>> GetUploadFilesAsync(FilesGetRequestDto fgrDto);
 
-        Task DeleteFileAsync(Guid fileId);
-    }
+	Task UpdateDescriptionAsync(Guid fileId, string description);
+
+	Task DeleteFileAsync(Guid fileId);
 }

@@ -1,11 +1,15 @@
-﻿using TradePlatform.Api.DTOs.Questions;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using TradePlatform.Api.DTOs.Questions;
 
-namespace TradePlatform.Api.Services.Questions
+namespace TradePlatform.Api.Services.Questions;
+
+public interface IQuestionsService
 {
-    public interface IQuestionsService
-    {
-        Task<object> GetNextStep(RequestForNextQue nQue);
-        Task<List<QuestionDto>> GetQuestionsForPostJob(Guid job_id);
-        Task UpsertAnswerAsync(AnswerUpsertDto auDto);
-    }
+	Task<object> GetNextStep(RequestForNextQue nQue);
+
+	Task<List<QuestionDto>> GetQuestionsForPostJob(Guid job_id);
+
+	Task UpsertAnswerAsync(AnswerUpsertDto auDto);
 }

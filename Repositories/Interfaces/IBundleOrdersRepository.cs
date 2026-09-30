@@ -1,17 +1,22 @@
-﻿using TradePlatform.Api.DTOs.Bundles;
-using TradePlatform.Api.Models;
+using System.Threading.Tasks;
+using TradePlatform.Api.DTOs.Bundles;
+using TradePlatform.Api.Models.BundleCredit;
 
-namespace TradePlatform.Api.Repositories.Interfaces
+namespace TradePlatform.Api.Repositories.Interfaces;
+
+public interface IBundleOrdersRepository
 {
-    public interface IBundleOrdersRepository
-    {
-        Task<BundleOrders> CreateAsync(BundleOrders order);
-        Task BundleCheckoutCompletedAsync(BundleCheckoutCompletedDto dto);
-        Task BundleOrderMarkFailedAsync(BundleCheckoutFailedDto dto);        
-        Task MarkPaidAsync(string stripe_session_id, string stripe_payment_intent_id);
-        Task MarkRefundedAsync(string stripe_payment_intent_id);
-        Task<BundleOrders?> GetByStripeSessionIdAsync(string stripe_session_id);
-        Task<BundleOrders?> GetByPaymentIntentIdAsync(string stripe_payment_intent_id);
-       
-    }
+	Task<BundleOrders> CreateAsync(BundleOrders order);
+
+	Task CreditBundlePurchaseCompletedAsync(BundlePurchaseCompletedDto dto);
+
+	Task BundleOrderMarkFailedAsync(BundleCheckoutFailedDto dto);
+
+	Task MarkPaidAsync(string stripe_session_id, string stripe_payment_intent_id);
+
+	Task MarkRefundedAsync(string stripe_payment_intent_id);
+
+	Task<BundleOrders?> GetByStripeSessionIdAsync(string stripe_session_id);
+
+	Task<BundleOrders?> GetByPaymentIntentIdAsync(string stripe_payment_intent_id);
 }

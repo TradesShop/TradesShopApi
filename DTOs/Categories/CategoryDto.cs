@@ -1,9 +1,12 @@
-﻿namespace TradePlatform.Api.DTOs.Categories
+using System.Collections.Generic;
+
+namespace TradePlatform.Api.DTOs.Categories;
+
+public class CategoryDto
 {
-    public class CategoryDto
-    {
-        public int id { get; set; }
-        public string name { get; set; }
-        public List<CategorySkillDto> children { get; set; } = new();
-    }
+	public int id { get; set; }
+
+	public string name { get; set; }
+
+	public List<CategorySkillDto> children { get; set; } = new List<CategorySkillDto>();
 }

@@ -1,10 +1,10 @@
-﻿using TradePlatform.Api.Models;
+using TradePlatform.Api.Models;
 
-namespace TradePlatform.Api.Repositories.Interfaces
+namespace TradePlatform.Api.Repositories.Interfaces;
+
+public interface IJwtTokenService
 {
-    public interface IJwtTokenService
-    {
-        string GenerateToken(User user);
-        string GenerateRefreshToken();
-    }
+	string GenerateToken(User user);
+
+	string GenerateRefreshToken();
 }

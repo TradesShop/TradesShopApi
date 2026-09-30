@@ -1,8 +1,8 @@
-﻿namespace TradePlatform.Api.DTOs
+namespace TradePlatform.Api.DTOs;
+
+public class LoginDto
 {
-    public class LoginDto
-    {
-        public string email { get; set; }
-        public string password { get; set; }
-    }
+	public string email { get; set; }
+
+	public string password { get; set; }
 }

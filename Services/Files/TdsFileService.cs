@@ -1,23 +1,21 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using TradePlatform.Api.DTOs.Files;
 using TradePlatform.Api.Repositories.Interfaces;
 
-namespace TradePlatform.Api.Services.Files
+namespace TradePlatform.Api.Services.Files;
+
+public class TdsFileService : ITdsFileService
 {
-    public class TdsFileService : ITdsFileService
-    {
-        private readonly IFileRepository _fileRepo;
-        
-        public TdsFileService(
-             IFileRepository fileRepo
-            )
-        {
-            _fileRepo = fileRepo;
-            
-        }
-        public async Task<IEnumerable<UploadFilesDto>> GetUploadFilesAsync(FilesGetRequestDto fgrDto)
-        {
-            return await _fileRepo.GetUploadFilesAsync(fgrDto);
-        }
-    }
+	private readonly IFileRepository _fileRepo;
+
+	public TdsFileService(IFileRepository fileRepo)
+	{
+		_fileRepo = fileRepo;
+	}
+
+	public async Task<IEnumerable<UploadFilesDto>> GetUploadFilesAsync(FilesGetRequestDto fgrDto)
+	{
+		return await _fileRepo.GetUploadFilesAsync(fgrDto);
+	}
 }

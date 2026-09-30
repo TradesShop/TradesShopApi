@@ -1,8 +1,10 @@
-﻿namespace TradePlatform.Api.DTOs.subscription
+using System;
+
+namespace TradePlatform.Api.DTOs.subscription;
+
+public class SubscriptionUpdateRequest
 {
-    public class SubscriptionUpdateRequest
-    {
-        public Guid subscription_id { get; set; }        
-        public Guid plan_price_id { get; set; }
-    }
+	public Guid subscription_id { get; set; }
+
+	public Guid plan_price_id { get; set; }
 }

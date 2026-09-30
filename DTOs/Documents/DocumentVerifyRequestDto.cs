@@ -1,7 +1,6 @@
-﻿namespace TradePlatform.Api.DTOs.Documents
+namespace TradePlatform.Api.DTOs.Documents;
+
+public class DocumentVerifyRequestDto
 {
-    public class DocumentVerifyRequestDto
-    {
-        public string readUrl { get; set; }
-    }
+	public string readUrl { get; set; }
 }

@@ -1,0 +1,86 @@
+﻿<!-- MyTradesShop Subscription Cancellation Confirmation -->
+
+<div class="title">
+    Subscription Cancellation, {{ReceiverName}}
+</div>
+
+<div class="subtitle">
+    We are writing to confirm that your subscription has been canceled. Here are the final details regarding your account coverage.
+</div>
+
+<!-- Cancellation Status Badge -->
+<div style="text-align:center; margin:20px 0 25px 0;">
+    <span style="
+        display:inline-block;
+        background:#f8d7da;
+        color:#721c24;
+        padding:8px 18px;
+        border-radius:999px;
+        font-weight:600;
+        font-size:14px;">
+        &#10007; Subscription Canceled
+    </span>
+</div>
+
+<!-- Primary Summary Card -->
+<div class="job-card">
+    <div class="heading-h4" style="margin-bottom:15px;">
+        Canceled Subscription Details
+    </div>
+
+    <p style="margin-bottom:8px;">
+        <strong>Plan Name:</strong> {{PlanType}} [{{ PlanName}}]
+    </p>
+
+    <p style="margin-bottom:8px;">
+        <strong>Cancellation Date:</strong> {{CancellationDate}}
+    </p>
+
+    {{#if SubscriptionEndDate}}
+    <p style="margin-bottom:8px;">
+        <strong>Access Active Until:</strong> {{SubscriptionEndDate}}
+    </p>
+    {{/if}}
+</div>
+
+<!-- Call To Action -->
+<div class="tds-btn-center" style="margin-top:25px;">
+    <a href="{{SubscriptionUrl}}" class="primary-btn">
+        Reactivate Subscription
+    </a>
+</div>
+
+<!-- What Happens Next -->
+<div style="margin-top:30px; padding:20px; background:#f8f9fa; border-radius:8px; text-align:left;">
+    <h4 style="margin-top:0; margin-bottom:10px; color:#333;">
+        Important Information
+    </h4>
+
+    <ul style="padding-left:20px; margin:0; color:#555; line-height:1.8;">
+        {{#if SubscriptionEndDate}}
+        <li>
+            You will continue to have access to your plan features until <strong>{{SubscriptionEndDate}}</strong>.
+        </li>
+        {{else}}
+        <li>
+            Your subscription benefits have ended as of today.
+        </li>
+        {{/if}}
+        <li>
+            Any remaining credits or existing account history will remain preserved in your dashboard profile.
+        </li>
+        <li>
+            If you change your mind, you can resubscribe or select a new plan anytime from your user dashboard.
+        </li>
+    </ul>
+</div>
+
+<!-- Support Section -->
+<div style="text-align:center; margin-top:30px; color:#666; font-size:14px; line-height:1.7;">
+    Have feedback or questions about your cancellation?<br>
+    <a href="{{ContactUsUrl}}" style="color:#d96c1d; text-decoration:none; font-weight:600;">
+        Contact MyTradesShop Support
+    </a>
+    <br><br>
+    Thank you for being a valued part of MyTradesShop!
+</div>

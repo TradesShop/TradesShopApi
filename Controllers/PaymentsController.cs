@@ -1,244 +1,138 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.VisualBasic;
-using Stripe;
 using System;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using System.Threading.Tasks;
-using TradePlatform.Api.DTOs.Payments;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Stripe;
 using TradePlatform.Api.DTOs.Stripe;
 using TradePlatform.Api.Models;
-using TradePlatform.Api.Repositories.Implementations;
 using TradePlatform.Api.Repositories.Interfaces;
 using TradePlatform.Api.Services;
 using TradePlatform.Api.Services.Payments;
 
-namespace TradePlatform.Api.Controllers
+namespace TradePlatform.Api.Controllers;
+
+[ApiController]
+[Route("api/payments")]
+[Authorize]
+public class PaymentsController : BaseController
 {
-    [ApiController]
-    [Route("api/payments")]
-    [Authorize]
-    public class PaymentsController : BaseController
-    {
-        private readonly IPaymentsRepository _payservice;
-        private readonly IStripeService _stripeservice;
-        private readonly StripeClient _stripe;
-        private readonly IPaymentMethodRepository _paymentMethods;
-        private readonly IUsersRepository _users;
-        private readonly IIdentityService _identity;
-        private readonly IPaymentTshIntentService _paymentIntentService;
+	private readonly IPaymentsRepository _payservice;
 
-        public PaymentsController(IPaymentsRepository payservice,
-           StripeClient stripe,
-        IPaymentMethodRepository paymentMethods,
-        IUsersRepository users,
-        IStripeService stripeservice,
-        IIdentityService identity ,
-        IPaymentTshIntentService paymentIntentService,
-        IHttpContextAccessor http
-        ) : base(http)
-        {
-            _payservice = payservice;
-            _stripe = stripe;
-            _paymentMethods = paymentMethods;
-            _users = users;
-            _stripeservice = stripeservice;
-            _identity = identity;
-            _paymentIntentService = paymentIntentService;
-        }
+	private readonly IStripeService _stripeservice;
 
-        // -----------------------------
-        // Identity Helpers
-        // -----------------------------
-        private Guid ResolveEffectiveUser(Guid callerId, UserType callerType, Guid? targetUserId)
-        {
-            return callerType == UserType.admin && targetUserId.HasValue
-                ? targetUserId.Value
-                : callerId;
-        }
-        
+	private readonly StripeClient _stripe;
 
-        // -----------------------------
-        // 1. Setup Intent
-        // -----------------------------
-        [HttpPost("setup-intent")]
-        public async Task<IActionResult> CreateSetupIntent([FromBody] SetupIntentDto? request)
-        {
-            var (callerId, callerType) = _identity.GetIdentity();
-           
-            var clientSecret = await _payservice.CreateSetupIntentAsync(
-                callerId,
-                callerType,
-                request?.target_user_id // null-safe
-            );
-            return ApiOk(clientSecret);
+	private readonly IPaymentMethodRepository _paymentMethods;
 
-        }
+	private readonly IUsersRepository _users;
 
-        // ---------------------------------------------------------
-        // 2. ATTACH PAYMENT METHOD
-        // ---------------------------------------------------------
-        [HttpPost("attach")]
-        public async Task<IActionResult> AttachPaymentMethod([FromBody] AttachPaymentMethodDto attach_dto)
-        {
-            var (callerId, callerType) = _identity.GetIdentity();
-            Guid effectiveUserId = ResolveEffectiveUser(
-                callerId,
-                callerType,
-                attach_dto?.target_user_id
-            );
-            var result = await _payservice.AttachPaymentMethodAsync(effectiveUserId, callerType,attach_dto.payment_method_id);
+	private new readonly IIdentityService _identity;
 
-            return Ok(result);
-        }
-        // ---------------------------------------------------------
-        // 3. GET PAYMENT METHODS
-        // ---------------------------------------------------------
-        [HttpGet("methods")]
-        public async Task<IActionResult> GetMethods([FromQuery] Guid? target_user_id)
-        {
-            var (callerId, callerType) = _identity.GetIdentity();
+	private readonly IPaymentTshIntentService _paymentIntentService;
 
-            Guid effectiveUserId = ResolveEffectiveUser(
-                callerId,
-                callerType,
-                target_user_id
-            );
-            if (effectiveUserId == null) return Unauthorized();
+	public PaymentsController(IPaymentsRepository payservice, StripeClient stripe, IPaymentMethodRepository paymentMethods, IUsersRepository users, IStripeService stripeservice, IIdentityService identity, IPaymentTshIntentService paymentIntentService)
+	{
+		_payservice = payservice;
+		_stripe = stripe;
+		_paymentMethods = paymentMethods;
+		_users = users;
+		_stripeservice = stripeservice;
+		_identity = identity;
+		_paymentIntentService = paymentIntentService;
+	}
 
-            var methods = await _paymentMethods.GetPaymentMethodsAsync(effectiveUserId);
+	private new Guid ResolveEffectiveUser(Guid callerId, UserType callerType, Guid? targetUserId)
+	{
+		if (callerType != UserType.admin || !targetUserId.HasValue)
+		{
+			return callerId;
+		}
+		return targetUserId.Value;
+	}
 
-            return ApiOk(methods);
-        }
-        // -----------------------------
-        // 3. Get Default Card
-        // -----------------------------
-        [HttpGet("methods/default")]
-        public async Task<IActionResult> GetDefaultPaymentMethod()
-        {
-            var (user_id, callerType) = _identity.GetIdentity();
-           
-            //Guid effectiveUserId = ResolveEffectiveUser(
-            //    callerId,
-            //    callerType,
-            //    pmDto?.target_user_id
-            //);
-            //if (effectiveUserId == null) return Unauthorized();
-            var anymethod= await _paymentMethods.GetDefaultPaymentMethodAsync(user_id);
-            return ApiOk(anymethod);
-        }
+	[HttpPost("setup-intent")]
+	public async Task<IActionResult> CreateSetupIntent([FromBody] SetupIntentDto? request)
+	{
+		var (callerId, callerType) = _identity.GetIdentity();
+		return ApiOk(await _payservice.CreateSetupIntentAsync(callerId, callerType, request?.target_user_id));
+	}
 
-        // -----------------------------
-        // 3. Set Default Card
-        // -----------------------------
-        [HttpPost("methods/default/{id}")]
-        public async Task<IActionResult> SetDefaultCard(string id, [FromBody] SetDefaultPaymentMethodDto? pmDto)
-        {
-            var (callerId, callerType) = _identity.GetIdentity();
-            var stripe_payment_method_id = id;
-            Guid effectiveUserId = ResolveEffectiveUser(
-                callerId,
-                callerType,
-                pmDto?.target_user_id
-            );
-            //if (effectiveUserId == null) return Unauthorized();
-            await _stripeservice.SetDefaultPaymentMethodAsync(effectiveUserId, stripe_payment_method_id);
+	[HttpPost("attach")]
+	public async Task<IActionResult> AttachPaymentMethod([FromBody] AttachPaymentMethodDto attach_dto)
+	{
+		(Guid userId, UserType userType) identity = _identity.GetIdentity();
+		Guid callerId = identity.userId;
+		UserType callerType = identity.userType;
+		Guid effectiveUserId = ResolveEffectiveUser(callerId, callerType, attach_dto?.target_user_id);
+		return Ok(await _payservice.AttachPaymentMethodAsync(effectiveUserId, callerType, attach_dto.payment_method_id));
+	}
 
-            return ApiOk();
-        }
+	[HttpGet("methods")]
+	public async Task<IActionResult> GetMethods([FromQuery] Guid? target_user_id)
+	{
+		(Guid userId, UserType userType) identity = _identity.GetIdentity();
+		Guid callerId = identity.userId;
+		UserType callerType = identity.userType;
+		Guid effectiveUserId = ResolveEffectiveUser(callerId, callerType, target_user_id);
+		return ApiOk(await _paymentMethods.GetPaymentMethodsAsync(effectiveUserId));
+	}
 
-        // -----------------------------
-        // 4. Detach Card
-        // -----------------------------
-        [HttpPut("methods/detach/{id}")]
-        public async Task<IActionResult> DetachCard(string id, [FromBody] DetachPaymentMethodDto? pmDto)
-        {
-            var (callerId, callerType) = _identity.GetIdentity();
-            var stripe_payment_method_id = id;
+	[HttpGet("methods/default")]
+	public async Task<IActionResult> GetDefaultPaymentMethod([FromQuery] Guid? target_user_id)
+	{
+		(Guid userId, UserType userType) identity = _identity.GetIdentity();
+		Guid user_id = identity.userId;
+		UserType user_type = identity.userType;
+		Guid effectiveUserId = ResolveEffectiveUser(user_id, user_type, target_user_id);
+		return ApiOk(await _paymentMethods.GetDefaultPaymentMethodAsync(effectiveUserId));
+	}
 
-            Guid effectiveUserId = ResolveEffectiveUser(
-                callerId,
-                callerType,
-                pmDto?.target_user_id
-            );
+	[HttpPost("methods/default/{id}")]
+	public async Task<IActionResult> SetDefaultCard(string id, [FromBody] SetDefaultPaymentMethodDto? pmDto)
+	{
+		(Guid userId, UserType userType) identity = _identity.GetIdentity();
+		Guid callerId = identity.userId;
+		UserType callerType = identity.userType;
+		Guid effectiveUserId = ResolveEffectiveUser(callerId, callerType, pmDto?.target_user_id);
+		await _stripeservice.SetDefaultPaymentMethodAsync(effectiveUserId, id);
+		return ApiOk();
+	}
 
-            //if (effectiveUserId == null) return Unauthorized();
+	[HttpPut("methods/detach/{id}")]
+	public async Task<IActionResult> DetachCard(string id, [FromBody] DetachPaymentMethodDto? pmDto)
+	{
+		(Guid userId, UserType userType) identity = _identity.GetIdentity();
+		Guid callerId = identity.userId;
+		UserType callerType = identity.userType;
+		Guid effectiveUserId = ResolveEffectiveUser(callerId, callerType, pmDto?.target_user_id);
+		await _stripeservice.DetachPaymentMethodAsync(effectiveUserId, id);
+		return ApiOk();
+	}
 
-            await _stripeservice.DetachPaymentMethodAsync(effectiveUserId, stripe_payment_method_id);
+	[HttpPost("subscribe")]
+	public async Task<IActionResult> Subscribe([FromBody] SubscriptionRequest request)
+	{
+		var (callerId, callerType) = _identity.GetIdentity();
+		return Ok(await _payservice.SubscribeAsync(callerId, callerType, request.priceid, request.paymentmethodid, request.targetuserid));
+	}
 
-            return ApiOk();
-        }
+	[HttpPost("cancel-subscription")]
+	public async Task<IActionResult> CancelSubscription([FromBody] CancelSubscriptionDto request)
+	{
+		var (userId, userType) = _identity.GetIdentity();
+		await _payservice.CancelSubscriptionAsync(userId, userType, request.stripe_subscription_id, request.targetuserid);
+		return ApiOk();
+	}
 
-        // -----------------------------
-        // 5. Create or Update Subscription
-        // -----------------------------
-        [HttpPost("subscribe")]
-        public async Task<IActionResult> Subscribe([FromBody] SubscriptionRequest request)
-        {
-            var (callerId, callerType) = _identity.GetIdentity();
-            var subscription = await _payservice.SubscribeAsync(
-                callerId,
-                callerType,
-                request.priceid,
-                request.paymentmethodid,
-                request.targetuserid
-            );
-
-            return Ok(subscription);
-        }
-
-        // -----------------------------
-        // 6. Cancel Subscription
-        // -----------------------------
-        [HttpPost("cancel-subscription")]
-        public async Task<IActionResult> CancelSubscription([FromBody] CancelSubscriptionDto request)
-        {
-            var (userId, userType) = _identity.GetIdentity();
-            await _payservice.CancelSubscriptionAsync(
-                userId,
-                userType,
-                request.stripe_subscription_id,
-                request.targetuserid
-            );
-
-            return ApiOk();
-        }
-        [HttpPut("methods/update/{id}")]
-        public async Task<IActionResult> UpdatePaymentMethod([FromRoute] string id,[FromBody] PaymentMethodUpdateDto dto)
-        {
-            var (callerId, callerType) = _identity.GetIdentity();
-
-            Guid effectiveUserId = ResolveEffectiveUser(
-                callerId,
-                callerType,
-                dto.target_user_id
-            );
-
-            // STEP 1: Update Stripe FIRST
-            await _stripeservice.UpdatePaymentMethodAsync(
-                id,
-                dto.name_on_card,
-                dto.exp_month,
-                dto.exp_year
-            );
-            // 2. Update local DB second
-            await _paymentMethods.UpdatePaymentMethodAsync(
-                id,
-                dto.name_on_card,
-                dto.exp_month,
-                dto.exp_year,
-                effectiveUserId
-            );
-            return ApiOk();
-            
-        }
-        //[HttpPost("start")]
-        //public async Task<IActionResult> StartPayment([FromBody] StartPaymentRequestDto dto)
-        //{
-        //    var result = await _paymentIntentService.StartPaymentAsync(dto);
-        //    return Ok(result);
-        //}
-    }
+	[HttpPut("methods/update/{id}")]
+	public async Task<IActionResult> UpdatePaymentMethod([FromRoute] string id, [FromBody] PaymentMethodUpdateDto dto)
+	{
+		(Guid userId, UserType userType) identity = _identity.GetIdentity();
+		Guid callerId = identity.userId;
+		UserType callerType = identity.userType;
+		Guid effectiveUserId = ResolveEffectiveUser(callerId, callerType, dto.target_user_id);
+		await _stripeservice.UpdatePaymentMethodAsync(id, dto.name_on_card, dto.exp_month, dto.exp_year);
+		await _paymentMethods.UpdatePaymentMethodAsync(id, dto.name_on_card, dto.exp_month, dto.exp_year, effectiveUserId);
+		return ApiOk();
+	}
 }
-

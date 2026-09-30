@@ -1,8 +1,8 @@
-﻿namespace TradePlatform.Api.DTOs.Common
+namespace TradePlatform.Api.DTOs.Common;
+
+public class CommonResponseDto
 {
-    public class CommonResponseDto
-    {
-        public bool success { get; set; }
-        public string message { get; set; }
-    }
+	public bool success { get; set; }
+
+	public string message { get; set; }
 }

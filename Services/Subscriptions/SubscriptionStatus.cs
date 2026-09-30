@@ -1,14 +1,14 @@
-﻿namespace TradePlatform.Api.Services.Subscriptions
+namespace TradePlatform.Api.Services.Subscriptions;
+
+public enum SubscriptionStatus
 {
-    public enum SubscriptionStatus
-    {
-        Unknown = 0,
-        Trialing,
-        Active,
-        PastDue,
-        Canceled,
-        Unpaid,
-        Incomplete,
-        IncompleteExpired
-    }
+	Unknown,
+	Trialing,
+	Active,
+	CancelScheduled,
+	PastDue,
+	Canceled,
+	Unpaid,
+	Incomplete,
+	IncompleteExpired
 }

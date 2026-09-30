@@ -1,38 +1,29 @@
-﻿using Microsoft.AspNetCore.Http;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using TradePlatform.Api.Repositories;
-using TradePlatform.Api.Repositories.Implementations;
 using TradePlatform.Api.Repositories.Interfaces;
 
-namespace TradePlatform.Api.Controllers
+namespace TradePlatform.Api.Controllers;
+
+[Route("api/[controller]")]
+[ApiController]
+public class TradesController : BaseController
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class TradesController : BaseController
-    {
-        private readonly ITradesRepository _repo;
+	private readonly ITradesRepository _repo;
 
-        public TradesController(ITradesRepository repo,
-         IHttpContextAccessor http
-        ) : base(http)
-        {
-            _repo = repo;
-        }
+	public TradesController(ITradesRepository repo)
+	{
+		_repo = repo;
+	}
 
-        // GET /api/trades
-        [HttpGet]
-        public async Task<IActionResult> GetTrades()
-        {
-            var trades = await _repo.GetTradesAsync(null);
-            return ApiOk(trades);
-        }
+	[HttpGet]
+	public async Task<IActionResult> GetTrades()
+	{
+		return ApiOk(await _repo.GetTradesAsync(null));
+	}
 
-        // GET /api/trades/5
-        [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetByTrade(int id)
-        {
-            var trades = await _repo.GetTradesAsync(id);
-            return ApiOk(trades);
-        }
-    }
+	[HttpGet("{id:int}")]
+	public async Task<IActionResult> GetByTrade(int id)
+	{
+		return ApiOk(await _repo.GetTradesAsync(id));
+	}
 }

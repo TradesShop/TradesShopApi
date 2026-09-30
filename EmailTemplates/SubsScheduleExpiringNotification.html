@@ -1,0 +1,79 @@
+﻿<!-- MyTradesShop Subscription Schedule Expiring Reminder -->
+
+<div class="title">
+    Upcoming Plan Change Reminder, {{ReceiverName}}
+</div>
+
+<div class="subtitle">
+    This is a quick notification to remind you that your scheduled subscription transition is occurring soon.
+</div>
+
+<!-- Warning Badge -->
+<div style="text-align:center; margin:20px 0 25px 0;">
+    <span style="
+        display:inline-block;
+        background:#fff3cd;
+        color:#856404;
+        padding:8px 18px;
+        border-radius:999px;
+        font-weight:600;
+        font-size:14px;">
+        &#9200; Transitioning in {{DaysRemaining}} Days
+    </span>
+</div>
+
+<!-- Transition Details Card -->
+<div class="job-card">
+    <div class="heading-h4" style="margin-bottom:15px;">
+        Upcoming Transition Details
+    </div>
+
+    <p style="margin-bottom:8px;">
+        <strong>Transition Date:</strong> {{EffectiveDate}}
+    </p>
+
+    <p style="margin-bottom:8px;">
+        <strong>Changing From:</strong> {{PlanType}} [{{ PlanName}}]
+    </p>
+
+    <p style="margin-bottom:8px;">
+        <strong>Changing To:</strong> {{NewPlanType}} [{{ NewPlanName}}]
+    </p>
+
+    <p style="margin-bottom:8px;">
+        <strong>New Rate:</strong> {{NewPlanPrice}} / {{NewBillingInterval}}
+    </p>
+</div>
+
+<!-- Call To Action -->
+<div class="tds-btn-center" style="margin-top:25px;">
+    <a href="{{SubscriptionUrl}}" class="primary-btn">
+        Review Scheduled Changes
+    </a>
+</div>
+
+<!-- Actions List -->
+<div style="margin-top:30px; padding:20px; background:#f8f9fa; border-radius:8px; text-align:left;">
+    <h4 style="margin-top:0; margin-bottom:10px; color:#333;">
+        Do You Need to Take Action?
+    </h4>
+
+    <ul style="padding-left:20px; margin:0; color:#555; line-height:1.8;">
+        <li>
+            <strong>If you are happy with this change:</strong> No action is required! Your plan will automatically adjust on <strong>{{EffectiveDate}}</strong>.
+        </li>
+        <li>
+            <strong>If you want to keep your current plan:</strong> Please visit your dashboard before {{EffectiveDate}} to cancel this pending schedule.
+        </li>
+    </ul>
+</div>
+
+<!-- Support Section -->
+<div style="text-align:center; margin-top:30px; color:#666; font-size:14px; line-height:1.7;">
+    Have questions about your scheduled transition?<br>
+    <a href="{{ContactUsUrl}}" style="color:#d96c1d; text-decoration:none; font-weight:600;">
+        Contact MyTradesShop Support
+    </a>
+    <br><br>
+    Thank you for choosing MyTradesShop!
+</div>

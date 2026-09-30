@@ -1,7 +1,8 @@
-﻿namespace TradePlatform.Api.DTOs.Stripe
+using System;
+
+namespace TradePlatform.Api.DTOs.Stripe;
+
+public class SetupIntentDto
 {
-    public class SetupIntentDto
-    {
-        public Guid? target_user_id { get; set; } // Admin only     
-    }
+	public Guid? target_user_id { get; set; }
 }

@@ -1,11 +1,15 @@
-﻿using TradePlatform.Api.Models;
+using System.Threading.Tasks;
+using TradePlatform.Api.Models;
 
-namespace TradePlatform.Api.Repositories.Interfaces
+namespace TradePlatform.Api.Repositories.Interfaces;
+
+public interface IRefreshTokenRepository
 {
-    public interface IRefreshTokenRepository
-    {
-        Task<RefreshToken> GetByTokenAsync(string token);
-        Task AddAsync(RefreshToken token);
-        Task UpdateAsync(RefreshToken token);
-    }
+	Task<RefreshToken> GetByTokenAsync(string token);
+
+	Task AddAsync(RefreshToken token);
+
+	Task UpdateAsync(RefreshToken token);
+
+	Task RevokeRefreshTokenByToken(RefreshToken anyRefreshToken);
 }

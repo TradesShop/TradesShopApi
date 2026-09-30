@@ -1,0 +1,51 @@
+﻿
+
+
+<div class="title">Hi {{ReceiverName}},</div>
+
+<div class="subtitle">Your dispute has now been reviewed by our support team.</div>
+
+<p>
+    We've completed our review of the dispute relating to the following job:
+</p>
+
+<p>
+    <strong>Job Reference:</strong> {{JobRef}}<br />
+    <strong>Job Title:</strong> {{JobTitle}}<br />   
+    <strong>Job Posted On:</strong> {{JobCreatedAt}}<br />
+    <strong>Dispute Raised On:</strong> {{DisputeCreatedAt}}
+</p>
+
+<p style="margin-top:20px;">
+    <strong>Dispute Decision:</strong> {{{DisputeDecision}}}<br />
+    <!--<strong>Status:</strong> {{StatusText}}<br />-->
+    {{#if RefundCredits>0}}
+    <br />
+    <strong>Credit Refund:</strong> {{RefundCredits}} credits
+    {{/if}}
+</p>
+
+{{#if AdminComments}}
+<p style="margin-top:20px;">
+    <strong>Comments from our support team</strong><br />
+    {{{AdminComments}}}
+</p>
+{{/if}}
+
+<div class="tds-btn-center">
+    <a href="{{ConversationUrl}}" class="primary-btn">       
+        View Dispute 
+    </a>
+</div>
+
+<h4>Need help?</h4>
+
+<p>
+    If you have any questions, you can reply through your MyTradesShop account or contact our support team.
+</p>
+
+<div class="tds-btn-center">
+    <a href="{{ManageJobUrl}}" class="primary-btn">
+        View Job
+    </a>
+</div>

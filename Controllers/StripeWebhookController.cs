@@ -1,4 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using System;
+using System.IO;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Primitives;
 using Stripe;
 using TradePlatform.Api.Services;
 
@@ -6,93 +13,56 @@ using TradePlatform.Api.Services;
 [Route("api/stripe/webhook")]
 public class StripeWebhookController : ControllerBase
 {
-    private readonly IStripeWebhookService _webhookService;
-    private readonly ILogger<StripeWebhookController> _logger;
-    private readonly string _webhookSecret;
+	private readonly IStripeWebhookService _webhookService;
 
-    public StripeWebhookController(
-        IStripeWebhookService webhookService,
-        IConfiguration config,
-        ILogger<StripeWebhookController> logger)
-    {
-        _webhookService = webhookService;
-        _logger = logger;
+	private readonly ILogger<StripeWebhookController> _logger;
 
-        _webhookSecret = config["Stripe:WebhookSecret"]
-            ?? throw new InvalidOperationException("Stripe webhook secret missing.");
-    }
+	private readonly string _webhookSecret;
 
-    [HttpPost]
-    public async Task<IActionResult> Handle()
-    {
-        var json = await new StreamReader(Request.Body).ReadToEndAsync();
-        var signature = Request.Headers["Stripe-Signature"];
+	public StripeWebhookController(IStripeWebhookService webhookService, IConfiguration config, ILogger<StripeWebhookController> logger)
+	{
+		_webhookService = webhookService;
+		_logger = logger;
+		_webhookSecret = config["Stripe:WebhookSecret"] ?? throw new InvalidOperationException("Stripe webhook secret missing.");
+	}
 
-        Event stripeEvent;
-      
-        try
-        {
-            stripeEvent = EventUtility.ConstructEvent(
-                json,
-                signature,
-                _webhookSecret,
-                throwOnApiVersionMismatch: false
-            );
-            var strip_ev_type = stripeEvent.Type;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error processing Stripe webhook: " + json);
-            return BadRequest();
-        }
-
-        try
-        {
-            var strip_ev_type = stripeEvent.Type;
-            await _webhookService.HandleEventAsync(stripeEvent, json, signature);
-        }
-        catch (Exception ex)
-        {
-            var strip_ev_type = stripeEvent.Type;
-            _logger.LogError(ex, "Error processing Stripe webhook: " + json);
-            throw;
-        }
-
-        return Ok();
-    }
+	[HttpPost]
+	public async Task<IActionResult> Handle()
+	{
+		string json = await new StreamReader(Request.Body).ReadToEndAsync();
+		StringValues signature = Request.Headers["Stripe-Signature"];
+		HttpContext.Request.EnableBuffering();
+		using (new StreamReader(HttpContext.Request.Body, null, detectEncodingFromByteOrderMarks: true, -1, leaveOpen: true))
+		{
+			HttpContext.Request.Body.Position = 0L;
+			Request.Headers.TryGetValue("Stripe-Signature", out var signatureHeader);
+			_logger.LogInformation("=== STRIPE DEBUG START ===");
+			_logger.LogInformation("Incoming Header: {Header}", signatureHeader.ToString());
+			_logger.LogInformation("Configured Secret in App: {Secret}", _webhookSecret);
+			_logger.LogInformation("Body Length: {Length}", json?.Length ?? 0);
+			_logger.LogInformation("=== STRIPE DEBUG END ===");
+			Event stripeEvent;
+			try
+			{
+				stripeEvent = EventUtility.ConstructEvent(json, signature, _webhookSecret, 300L, throwOnApiVersionMismatch: false);
+				_logger.LogInformation("Signature validation passed. Event type: {Type}", stripeEvent.Type);
+			}
+			catch (Exception exception)
+			{
+				_logger.LogError(exception, "Signature validation FAILED. Raw body: {Body}", json);
+				return BadRequest();
+			}
+			try
+			{
+				_logger.LogInformation("Processing event type: {Type}", stripeEvent.Type);
+				await _webhookService.HandleEventAsync(stripeEvent, json, signature);
+			}
+			catch (Exception exception2)
+			{
+				_logger.LogError(exception2, "Webhook handler failed for event {EventId}", stripeEvent.Id);
+				throw;
+			}
+			return Ok();
+		}
+	}
 }
-
-/*
- WHAT THIS CONTROLLER DOES
-
-1.Validates Stripe signature
-✔ Routes events to your webhook service
-
-    invoice.paid → HandleInvoicePaidAsync
-
-    invoice.payment_failed → HandleInvoicePaymentFailedAsync
-
-✔ Converts Stripe amounts (cents → decimal)
-
-Stripe sends amounts in cents, so:
-✔ Uses your service layer
-
-No repository calls here — clean separation.
-✔ Uses your naming rules
-
-    Controller = PascalCase
-
-    DTOs = PascalCase
-
-    No snake_case leaks
-
-    Stripe IDs passed as strings
-
-✔ Matches your myjobquotes architecture
-
-This is the same pattern used in your existing Stripe integration.
-
-
-
-
- */

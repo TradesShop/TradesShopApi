@@ -1,0 +1,89 @@
+﻿<!-- MyTradesShop Subscription Schedule Confirmation -->
+
+<div class="title">
+    Your Upcoming Subscription Change, {{ReceiverName}}
+</div>
+
+<div class="subtitle">
+    We have successfully scheduled your upcoming subscription update. Here are the details of your scheduled plan change.
+</div>
+
+<!-- Schedule Badge -->
+<div style="text-align:center; margin:20px 0 25px 0;">
+    <span style="
+        display:inline-block;
+        background:#e3f2fd;
+        color:#0d47a1;
+        padding:8px 18px;
+        border-radius:999px;
+        font-weight:600;
+        font-size:14px;">
+        &#128197; Plan Change Scheduled
+    </span>
+</div>
+
+<!-- Scheduled Plan Card -->
+<div class="job-card">
+    <div class="heading-h4" style="margin-bottom:15px;">
+        Scheduled Update Summary
+    </div>
+
+    <p style="margin-bottom:8px;">
+        <strong>Current Plan:</strong> {{PlanType}} [{{ PlanName}}]
+    </p>
+
+    <p style="margin-bottom:8px;">
+        <strong>Upcoming Plan:</strong> {{NewPlanType}} [{{ NewPlanName}}]
+    </p>
+
+    <p style="margin-bottom:8px;">
+        <strong>Effective Date:</strong> {{EffectiveDate}}
+    </p>
+
+    <p style="margin-bottom:8px;">
+        <strong>New Amount:</strong> {{NewPlanPrice}} / {{NewBillingPeriod}}
+    </p>
+
+    <!--<p style="margin-bottom:8px;">
+        <strong>Schedule Reference ID:</strong> {{PendingId}}
+    </p>-->
+</div>
+
+<!-- Call To Action -->
+<div class="tds-btn-center" style="margin-top:25px;">
+    <a href="{{SubscriptionUrl}}" class="primary-btn">
+        View Scheduled Changes
+    </a>
+</div>
+
+<!-- Important Notes -->
+<div style="margin-top:30px; padding:20px; background:#f8f9fa; border-radius:8px; text-align:left;">
+    <h4 style="margin-top:0; margin-bottom:10px; color:#333;">
+        What Happens Next?
+    </h4>
+
+    <ul style="padding-left:20px; margin:0; color:#555; line-height:1.8;">
+        <li>
+            Your current plan will remain fully active until <strong>{{EffectiveDate}}</strong>.
+        </li>
+        <li>
+            No payment will be processed today for this upcoming change.
+        </li>
+        <li>
+            On <strong>{{EffectiveDate}}</strong>, your subscription will automatically transition to <strong>{{NewPlanType}} [{{ NewPlanName}}]</strong> and the new rate will take effect.
+        </li>
+        <li>
+            You can modify or cancel this scheduled update anytime prior to the effective date from your dashboard.
+        </li>
+    </ul>
+</div>
+
+<!-- Support Section -->
+<div style="text-align:center; margin-top:30px; color:#666; font-size:14px; line-height:1.7;">
+    Need help or wish to alter your scheduled update?<br>
+    <a href="{{ContactUsUrl}}" style="color:#d96c1d; text-decoration:none; font-weight:600;">
+        Contact MyTradesShop Support
+    </a>
+    <br><br>
+    Thank you for choosing MyTradesShop!
+</div>

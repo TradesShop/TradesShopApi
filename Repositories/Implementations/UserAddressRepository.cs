@@ -1,93 +1,48 @@
-﻿using Dapper;
+using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Threading.Tasks;
+using Dapper;
 using TradePlatform.Api.Data;
 using TradePlatform.Api.DTOs;
 using TradePlatform.Api.Models;
-using TradePlatform.Api.Repositories.Interfaces;
 
-namespace TradePlatform.Api.Repositories.Implementations
+namespace TradePlatform.Api.Repositories.Implementations;
+
+public class UserAddressRepository : IUserAddressRepository
 {
-    public class UserAddressRepository : IUserAddressRepository
-    {
-        private readonly DapperContext _context;
+	private readonly DapperContext _context;
 
-        public UserAddressRepository(DapperContext context)
-        {
-            _context = context;
-        }
+	public UserAddressRepository(DapperContext context)
+	{
+		_context = context;
+	}
 
-        // -------------------------
-        // CREATE / UPSERT
-        // -------------------------
-        public async Task<Guid> CreateCustomerProfileAsync(RegisterDto reg_dto)
-        {
-            using var conn = _context.CreateOpenConnection();
+	public async Task<Guid> CreateCustomerProfileAsync(RegisterDto reg_dto)
+	{
+		using IDbConnection conn = _context.CreateOpenConnection();
+		var param = new { reg_dto.user_id, reg_dto.address_line1, reg_dto.address_line2, reg_dto.town, reg_dto.county, reg_dto.postcode, reg_dto.country_id, reg_dto.longitude, reg_dto.latitude };
+		CommandType? commandType = CommandType.StoredProcedure;
+		return await conn.QueryFirstOrDefaultAsync<Guid>("usp_user_customer_profile_create", param, null, null, commandType);
+	}
 
-            var customer_id = await conn.QueryFirstOrDefaultAsync<Guid>(
-                "usp_user_customer_profile_create",
-                new
-                {
-                    user_id = reg_dto.user_id,                   
-                    address_line1 = reg_dto.address_line1,
-                    address_line2 = reg_dto.address_line2,
-                    town = reg_dto.town,
-                    county = reg_dto.county,
-                    postcode = reg_dto.postcode,
-                    country_id = reg_dto.country_id,
-                    longitude = reg_dto.longitude,
-                    latitude = reg_dto.latitude                   
-                },
-                commandType: CommandType.StoredProcedure
-            );
+	public async Task<Guid> CreateTradeUserBusinessAsync(RegisterDto reg_dto)
+	{
+		using IDbConnection conn = _context.CreateOpenConnection();
+		var param = new
+		{
+			reg_dto.user_id, reg_dto.business_name, reg_dto.address_line1, reg_dto.address_line2, reg_dto.town, reg_dto.county, reg_dto.postcode, reg_dto.country_id, reg_dto.longitude, reg_dto.latitude,
+			reg_dto.primarytrade, reg_dto.secondarytrade, reg_dto.public_slug
+		};
+		CommandType? commandType = CommandType.StoredProcedure;
+		return await conn.QueryFirstOrDefaultAsync<Guid>("usp_user_trade_business_create", param, null, null, commandType);
+	}
 
-            return customer_id;
-        }
-        public async Task<Guid> CreateTradeUserBusinessAsync(RegisterDto reg_dto)
-        {
-            using var conn = _context.CreateOpenConnection();
-
-            var business_id = await conn.QueryFirstOrDefaultAsync<Guid>(
-                "usp_user_trade_business_create",
-                new
-                {
-                    user_id = reg_dto.user_id,
-                    business_name = reg_dto.business_name,
-                    address_line1 = reg_dto.address_line1,
-                    address_line2 = reg_dto.address_line2,
-                    town = reg_dto.town,
-                    county = reg_dto.county,
-                    postcode = reg_dto.postcode,
-                    country_id = reg_dto.country_id,
-                    longitude = reg_dto.longitude,
-                    latitude = reg_dto.latitude,
-                    primarytrade = reg_dto.primarytrade,
-                    secondarytrade = reg_dto.secondarytrade,
-                    public_slug=reg_dto.public_slug
-                },
-                commandType: CommandType.StoredProcedure
-            );
-
-            return business_id;
-        }
-
-
-
-
-
-        // -------------------------
-        // GET BY ENTITY
-        // -------------------------
-        public async Task<IEnumerable<UserAddress>> GetByEntityAsync(Guid entity_id)
-        {
-            using var conn = _context.CreateConnection();
-
-            var result = await conn.QueryAsync<UserAddress>(
-                "usp_user_trade_addresses_get_async",
-                new { entity_id },
-                commandType: CommandType.StoredProcedure
-            );
-
-            return result;
-        }
-    }
+	public async Task<IEnumerable<UserAddress>> GetByEntityAsync(Guid entity_id)
+	{
+		using IDbConnection conn = _context.CreateConnection();
+		var param = new { entity_id };
+		CommandType? commandType = CommandType.StoredProcedure;
+		return await conn.QueryAsync<UserAddress>("usp_user_trade_addresses_get_async", param, null, null, commandType);
+	}
 }

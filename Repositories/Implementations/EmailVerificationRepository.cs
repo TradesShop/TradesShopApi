@@ -1,77 +1,53 @@
-﻿using System;
+using System;
 using System.Data;
 using System.Threading.Tasks;
 using Dapper;
 using TradePlatform.Api.Data;
 using TradePlatform.Api.Repositories.Interfaces;
 
-namespace TradePlatform.Api.Repositories.Implementations
+namespace TradePlatform.Api.Repositories.Implementations;
+
+public class EmailVerificationRepository : IEmailVerificationRepository
 {
-    public class EmailVerificationRepository : IEmailVerificationRepository
-    {
-        private readonly DapperContext _context;
+	private readonly DapperContext _context;
 
-        public EmailVerificationRepository(DapperContext context)
-        {
-            _context = context;
-        }
+	public EmailVerificationRepository(DapperContext context)
+	{
+		_context = context;
+	}
 
-        /// <summary>
-        /// Save OTP code for the given email.
-        /// SQL procedure hashes the code internally.
-        /// </summary>
-        public async Task SaveCodeAsync(string email, string code, DateTime expires_at)
-        {
-            using var conn = _context.CreateOpenConnection();
-            await conn.ExecuteAsync(
-                "usp_UserEmailVerification_SubmitCode",
-                new { email = email, code = code, expires_at = expires_at },
-                commandType: CommandType.StoredProcedure
-            );
-        }
-        public async Task<bool> HasRecentCodeAsync(string email)
-        {
-            using var conn = _context.CreateOpenConnection();
+	public async Task SaveCodeAsync(string email, string code, DateTime expires_at)
+	{
+		using IDbConnection conn = _context.CreateOpenConnection();
+		var param = new { email, code, expires_at };
+		CommandType? commandType = CommandType.StoredProcedure;
+		await conn.ExecuteAsync("usp_UserEmailVerification_SubmitCode", param, null, null, commandType);
+	}
 
-            var result = await conn.ExecuteScalarAsync<int>(
-                "usp_UserEmailVerification_HasRecentCode",
-                new { email },
-                commandType: CommandType.StoredProcedure
-            );
+	public async Task<bool> HasRecentCodeAsync(string email)
+	{
+		using IDbConnection conn = _context.CreateOpenConnection();
+		var param = new { email };
+		CommandType? commandType = CommandType.StoredProcedure;
+		return await conn.ExecuteScalarAsync<int>("usp_UserEmailVerification_HasRecentCode", param, null, null, commandType) == 1;
+	}
 
-            return result == 1;
-        }
-        /// <summary>
-        /// Verify OTP code for the given email.
-        /// Returns true if the code is valid and not expired.
-        /// </summary>
-        public async Task<bool> VerifyCodeAsync(string email, string code)
-        {
-            using var conn = _context.CreateOpenConnection();
+	public async Task<bool> VerifyCodeAsync(string email, string code)
+	{
+		using IDbConnection conn = _context.CreateOpenConnection();
+		var param = new { email, code };
+		CommandType? commandType = CommandType.StoredProcedure;
+		return await conn.QuerySingleOrDefaultAsync<int?>("usp_UserEmailVerification_VerifyCode", param, null, null, commandType) == 1;
+	}
 
-            var result = await conn.QuerySingleOrDefaultAsync<int?>(
-                "usp_UserEmailVerification_VerifyCode",
-                new { email = email, code = code },
-                commandType: CommandType.StoredProcedure
-            );
-
-            return result.HasValue && result.Value == 1;
-        }
-
-        /// <summary>
-        /// Check if a user already exists by email.
-        /// </summary>
-        public async Task<bool> UserExistsAsync(string email)
-        {
-            using var conn = _context.CreateOpenConnection();
-
-            var exists = await conn.QuerySingleOrDefaultAsync<bool>(
-                "sp_Users_CheckByEmail",
-                new { Email = email },
-                commandType: CommandType.StoredProcedure
-            );
-
-            return exists;
-        }
-    }
+	public async Task<bool> UserExistsAsync(string email)
+	{
+		using IDbConnection conn = _context.CreateOpenConnection();
+		var param = new
+		{
+			Email = email
+		};
+		CommandType? commandType = CommandType.StoredProcedure;
+		return await conn.QuerySingleOrDefaultAsync<bool>("sp_Users_CheckByEmail", param, null, null, commandType);
+	}
 }

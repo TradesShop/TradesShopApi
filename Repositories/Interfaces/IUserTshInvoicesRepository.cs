@@ -1,13 +1,17 @@
-﻿using TradePlatform.Api.Models;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using TradePlatform.Api.Models;
 
-namespace TradePlatform.Api.Repositories.Interfaces
+namespace TradePlatform.Api.Repositories.Interfaces;
+
+public interface IUserTshInvoicesRepository
 {
-    public interface IUserTshInvoicesRepository
-    {
-        Task<UserInvoices?> GetByStripeInvoiceIdAsync(string stripe_invoiceid);
-        Task<IReadOnlyList<UserInvoices>> GetByUserAsync(Guid user_id);
+	Task<UserInvoices?> GetByStripeInvoiceIdAsync(string stripe_invoiceid);
 
-        Task InsertAsync(UserInvoices entity);
-        Task UpdateAsync(UserInvoices entity);
-    }
+	Task<IReadOnlyList<UserInvoices>> GetByUserAsync(Guid user_id);
+
+	Task InsertAsync(UserInvoices entity);
+
+	Task UpdateAsync(UserInvoices entity);
 }

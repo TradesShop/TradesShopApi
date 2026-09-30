@@ -1,80 +1,87 @@
-﻿using Stripe;
-using TradePlatform.Api.DTOs.Invoices;
-using TradePlatform.Api.DTOs.Payments;
+using System;
+using System.Threading.Tasks;
+using Stripe;
+using TradePlatform.Api.DTOs.Refunds;
 using TradePlatform.Api.Repositories.Interfaces;
+using TradePlatform.Api.Services.stripe;
 
-namespace TradePlatform.Api.Services.Payments
+namespace TradePlatform.Api.Services.Payments;
+
+public class RefundServices : IRefundServices
 {
-    public class RefundServices : IRefundServices
-    {
-        private readonly IPaymentsRepository _paymentsRepo;
-        private readonly IInvoicesTshRepository _invoicesRepo;
-        private readonly IConfiguration _config;
+	private readonly IRefundRepository _refundRepo;
 
-        public RefundServices(
-            IPaymentsRepository paymentsRepo,
-            IInvoicesTshRepository invoicesRepo,
-            IConfiguration config)
-        {
-            _paymentsRepo = paymentsRepo;
-            _invoicesRepo = invoicesRepo;
-            _config = config;
-        }
+	private readonly IStripeRefundService _stripeRefund;
 
-        public async Task<bool> RefundPaymentAsync(RefundRequestDto dto)
-        {
-            // ---------------------------------------------
-            // 0. Load payment
-            // ---------------------------------------------
-            var payment = await _paymentsRepo.GetByIdAsync(dto.PaymentId);
-            if (payment == null)
-                return false;
+	private readonly IIdentityService _identityService;
 
-            // ---------------------------------------------
-            // 1. Stripe Refund
-            // ---------------------------------------------
-            StripeConfiguration.ApiKey = _config["Stripe:SecretKey"];
+	public RefundServices(IRefundRepository refundRepo, IStripeRefundService stripeRefund, IIdentityService identityService)
+	{
+		_refundRepo = refundRepo;
+		_stripeRefund = stripeRefund;
+		_identityService = identityService;
+	}
 
-            var refundService = new RefundService();
-            var refund = await refundService.CreateAsync(new RefundCreateOptions
-            {
-                PaymentIntent = payment.stripe_payment_intent_id,
-                Amount = (long)(dto.Amount * 100),
-                Reason = dto.Reason
-            });
+	public async Task<RefundRequestResponse> CreateRefundRequestAsync(RefundRequestCreateDto rrc_dto)
+	{
+		return await _refundRepo.CreateRefundRequestAsync(rrc_dto);
+	}
 
-            // ---------------------------------------------
-            // 2. Update internal payment record
-            // ---------------------------------------------
-            await _paymentsRepo.MarkRefundedAsync(
-                payment.id,
-                dto.Amount,
-                refund.Id
-            );
-            
-            // ---------------------------------------------
-            // 3. Update invoice status
-            // ---------------------------------------------
-            var invoice = await _invoicesRepo.GetByIdAsync(payment.invoice_id);
-            if (invoice == null)
-                return true; // payment refunded but invoice missing (should not happen)
+	public async Task<RefundCalculationResponse?> GetRefundCalculationAsync(RefundRequestCreateDto rrc_dto)
+	{
+		return await _refundRepo.GetRefundCalculationAsync(rrc_dto);
+	}
 
-            if (dto.Amount == payment.amount)
-            {
-                invoice.status = "refunded";
-            }
-            else
-            {
-                invoice.status = "partially_refunded";
-            }
+	public async Task<RefundRequestListResult> GetRefundRequestListAsync(RefundsReqSearch rrsreq)
+	{
+		return await _refundRepo.GetRefundRequestListAsync(rrsreq);
+	}
 
-            invoice.updated_at = DateTime.UtcNow;
-            await _invoicesRepo.UpdateAsync(invoice);
+	public async Task<RefundViewDto> CreateRefundAsync(RefundCreateRequest request)
+	{
+		return await _refundRepo.CreateRefundAsync(request);
+	}
 
-            return true;
-        }
-    }
+	public async Task<RefundRequestResponse> GetRefundRequestById(Guid refund_request_id)
+	{
+		return await _refundRepo.GetRefundRequestById(refund_request_id);
+	}
 
-    // Stripe wrapper to avoid name conflict with your RefundService
-    //public class RefundServiceStripe : RefundServices { }
+	public async Task<RefundViewDto?> GetRefundViewById(Guid refund_id)
+	{
+		return await _refundRepo.GetRefundViewById(refund_id);
+	}
+
+	public async Task<RefundViewDto?> UpdateRefundAsync(RefundUpdateRequest request)
+	{
+		return await _refundRepo.UpdateRefundAsync(request);
+	}
+
+	public async Task<RefundViewDto?> RefundProcessAsync(Guid refund_id, Guid refund_request_id)
+	{
+		RefundViewDto refundRequest = await GetRefundViewById(refund_id);
+		if (refundRequest == null)
+		{
+			throw new InvalidOperationException("Refund request not exists");
+		}
+		if (refundRequest.refund_req_status_id == 75)
+		{
+			throw new InvalidOperationException("Refund already processed");
+		}
+		Refund stripeRefund = await _stripeRefund.CreateStripeRefundAsync(refundRequest, refund_id);
+		return await UpdateRefundAsync(new RefundUpdateRequest
+		{
+			refund_id = refund_id,
+			status_id = 82,
+			stripe_refund_id = stripeRefund.Id,
+			stripe_refund_status = stripeRefund.Status,
+			comments = "Refund completed successfully by Stripe",
+			updated_by = _identityService.GetCurrentUserId()
+		});
+	}
+
+	public async Task<RefundListResponse> GetRefundListAsync(RefundListRequest invreq)
+	{
+		return await _refundRepo.GetRefundListAsync(invreq);
+	}
 }

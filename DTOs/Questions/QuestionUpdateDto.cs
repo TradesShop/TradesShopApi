@@ -1,0 +1,26 @@
+using System;
+
+namespace TradePlatform.Api.DTOs.Questions;
+
+public class QuestionUpdateDto
+{
+	public int id { get; set; }
+
+	public string title { get; set; }
+
+	public string description { get; set; }
+
+	public string answertype { get; set; }
+
+	public bool? isactive { get; set; }
+
+	public int? group_id { get; set; }
+
+	public int? answer_group_id { get; set; }
+
+	public int? category_id { get; set; }
+
+	public Guid updated_by { get; set; }
+
+	public bool is_first_question { get; set; }
+}

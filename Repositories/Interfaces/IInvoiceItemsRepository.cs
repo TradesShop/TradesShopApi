@@ -1,10 +1,11 @@
-﻿using TradePlatform.Api.Models;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using TradePlatform.Api.Models;
 
-namespace TradePlatform.Api.Repositories.Interfaces
+namespace TradePlatform.Api.Repositories.Interfaces;
+
+public interface IInvoiceItemsRepository
 {
-    public interface IInvoiceItemsRepository
-    {
-        Task<IEnumerable<InvoiceItems>> GetByInvoiceIdAsync(Guid invoice_id);
-        //Task CreateManyAsync(IEnumerable<InvoiceItems> items);
-    }
+	Task<IEnumerable<InvoiceItems>> GetByInvoiceIdAsync(Guid invoice_id);
 }

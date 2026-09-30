@@ -1,10 +1,12 @@
-﻿namespace TradePlatform.Api.DTOs.Jobs
+namespace TradePlatform.Api.DTOs.Jobs;
+
+public class WorkplaceDto
 {
-    public class WorkplaceDto
-    {
-        public string country { get; set; }
-        public string region { get; set; }
-        public string district { get; set; }
-        public string county { get; set; }
-    }
+	public string? country { get; set; }
+
+	public string? region { get; set; }
+
+	public string? district { get; set; }
+
+	public string? county { get; set; }
 }

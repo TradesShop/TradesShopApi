@@ -1,9 +1,12 @@
-﻿namespace TradePlatform.Api.DTOs.Invoices
+using System;
+
+namespace TradePlatform.Api.DTOs.Invoices;
+
+public class RefundRequestDto
 {
-    public class RefundRequestDto
-    {
-        public Guid PaymentId { get; set; }
-        public decimal Amount { get; set; } // partial or full
-        public string Reason { get; set; }  // optional
-    }
+	public Guid PaymentId { get; set; }
+
+	public decimal Amount { get; set; }
+
+	public string Reason { get; set; }
 }

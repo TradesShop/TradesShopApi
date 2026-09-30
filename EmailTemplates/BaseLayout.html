@@ -1,0 +1,164 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>{{EmailTitle}}</title>
+
+    <style>
+        .view-btn {
+            margin-left: auto;
+        }
+
+        .float-right {
+            float: right;
+        }
+        .float-left {
+            float: left;
+        }
+        .heading-h4 {
+            font-size: 1.1rem!important;
+            font-weight: 600;
+            line-height: 1;
+        }
+
+        body {
+            background: #f5f5f5;
+            font-family: Arial, sans-serif;
+            padding: 0;
+            margin: 0;
+        }
+        .tds-btn-center {
+            text-align: center;
+        }
+        .job-card {
+            border: 1px solid #eee;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            background: #fafafa;
+        }
+        .job-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tds-link {
+            color: #d96c1d;
+            text-decoration: none;
+        }
+
+        .tds-home-link {
+            color: #000000;
+            text-decoration: none;
+        }
+
+        .wrapper {
+            width: 100%;
+            padding: 30px 0;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+        }
+
+        .title {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            margin-bottom: 20px;
+            color: #555;
+        }
+
+        p {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #444;
+            margin-bottom: 15px;
+        }
+
+        .primary-btn {
+            display: inline-block;
+            background: #d96c1d;
+            color: #fff !important;
+            padding: 6px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 15px;
+            margin-top: 20px;
+        }
+
+        .secondary-btn {
+            display: inline-block;
+            background: #0a2a43;
+            color: #fff !important;
+            padding: 6px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 15px;
+            margin-top: 10px;
+        }
+
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 12px;
+            color: #777;
+        }
+
+            .footer a {
+                color: #007bff;
+                text-decoration: none;
+                margin: 0 8px;
+            }
+        .text-left{
+            text-align:left;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrapper">
+        <div class="container">
+            <div style="text-align:center; margin-bottom:25px;">
+                <img src="https://stage.mytradesshop.com/images/logo_v1.png"
+                     alt="MyTradesShop Logo"
+                     style="max-width:180px; height:auto;" />
+            </div>
+            </br>
+            {{{Content}}}
+
+            <div class="footer">
+                <div class="text-left">
+                    <p>Thanks,<br />The MyTradesShop Team</p>
+                </div>
+
+                <p>
+                    <a href="{{AccountUrl}}">My Account</a> |
+                    <a href="{{ContactUsUrl}}">Contact Us</a> |
+                    <a href="{{SettingsUrl}}">Job Settings</a>
+                </p>
+
+                <p>
+                    Copyright © 2026
+                    <a href="{{HomeUrl}}" class="tds-home-link">MyTradesShop.com</a>.
+                    All rights reserved.
+                    <a href="{{UnsubscribeUrl}}">Unsubscribe</a>
+                </p>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>

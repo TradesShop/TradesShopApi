@@ -1,183 +1,168 @@
-﻿using Dapper;
+using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Linq;
+using System.Threading.Tasks;
+using Dapper;
 using TradePlatform.Api.Data;
 using TradePlatform.Api.DTOs.Business;
 using TradePlatform.Api.Models;
 using TradePlatform.Api.Repositories.Interfaces;
 using TradePlatform.Api.Services;
 
-namespace TradePlatform.Api.Repositories.Implementations
+namespace TradePlatform.Api.Repositories.Implementations;
+
+public class BusinessRepository : IBusinessRepository
 {
-    public class BusinessRepository: IBusinessRepository
-    {
-        private readonly DapperContext _context;
-        private readonly IIdentityService _identity;
+	private readonly DapperContext _context;
 
-        public BusinessRepository(DapperContext context
-            , IIdentityService identity)
-        {
-            _context = context;
-            _identity = identity;
-        }
+	private readonly IIdentityService _identity;
 
-        public async Task<IEnumerable<UserAddress>> BusinessAddressesForUserAsync(Guid user_id)
-        {
-            using var conn = _context.CreateOpenConnection();
+	public BusinessRepository(DapperContext context, IIdentityService identity)
+	{
+		_context = context;
+		_identity = identity;
+	}
 
-            var result = await conn.QueryAsync<UserAddress>(
-                "usp_user_trade_addresses_get_async",
-                new { user_id= user_id },
-                commandType: CommandType.StoredProcedure
-            );
+	public async Task<UserAddress> BusinessPrimaryAddressForUserId(Guid user_id)
+	{
+		using IDbConnection conn = _context.CreateOpenConnection();
+		var param = new { user_id };
+		CommandType? commandType = CommandType.StoredProcedure;
+		return await conn.QueryFirstOrDefaultAsync<UserAddress>("[dbo].[usp_user_business_primary_addr_get_by_id]", param, null, null, commandType);
+	}
 
-            return result;
-        }
-        public async Task<List<BusinessCategorySkillFlatDto>> GetBusinessCategorySkillsAsync(Guid business_id)
-        {
-            using var conn = _context.CreateOpenConnection();
+	public async Task<IEnumerable<UserAddress>> BusinessAddressesForUserAsync(Guid user_id)
+	{
+		using IDbConnection conn = _context.CreateOpenConnection();
+		var param = new { user_id };
+		CommandType? commandType = CommandType.StoredProcedure;
+		return await conn.QueryAsync<UserAddress>("usp_user_business_addresses_get_async", param, null, null, commandType);
+	}
 
-            var result = await conn.QueryAsync<BusinessCategorySkillFlatDto>(
-                "usp_user_business_category_skills_get",
-                new { business_id = business_id },
-                commandType: CommandType.StoredProcedure
-            );
+	public async Task<IEnumerable<UserAddress>> BusinessAdressRemoveAsync(AddressRemoveReq uaModel)
+	{
+		var parameters = new { uaModel.user_id, uaModel.business_id, uaModel.address_id };
+		using IDbConnection conn = _context.CreateOpenConnection();
+		CommandType? commandType = CommandType.StoredProcedure;
+		return await conn.QueryAsync<UserAddress>("usp_user_business_address_remove", parameters, null, null, commandType);
+	}
 
-            return result.ToList();
-        }
-        public async Task BusinessSkillsUpdateAsync(BusinessSkillsUpdateDto dto)
-        {
-            using var conn = _context.CreateOpenConnection();
+	public async Task<List<BusinessCategorySkillFlatDto>> GetBusinessCategorySkillsAsync(Guid business_id)
+	{
+		using IDbConnection conn = _context.CreateOpenConnection();
+		var param = new { business_id };
+		CommandType? commandType = CommandType.StoredProcedure;
+		return (await conn.QueryAsync<BusinessCategorySkillFlatDto>("usp_user_business_category_skills_get", param, null, null, commandType)).ToList();
+	}
 
-            // Convert skills list to table-valued parameter
-            var tvp = new DataTable();
-            tvp.Columns.Add("skill_id", typeof(int));
+	public async Task BusinessSkillsUpdateAsync(BusinessSkillsUpdateDto dto)
+	{
+		using IDbConnection conn = _context.CreateOpenConnection();
+		string skillsCsv = ((dto.skills_ids != null && dto.skills_ids.Any()) ? string.Join(",", dto.skills_ids) : string.Empty);
+		DynamicParameters parameters = new DynamicParameters();
+		parameters.Add("@id", dto.id);
+		parameters.Add("@user_id", _identity.GetUserId());
+		parameters.Add("@business_id", dto.business_id);
+		parameters.Add("@category_id", dto.category_id);
+		parameters.Add("@skills_ids", skillsCsv);
+		CommandType? commandType = CommandType.StoredProcedure;
+		await conn.ExecuteAsync("usp_user_business_skills_update", parameters, null, null, commandType);
+	}
 
-            foreach (var id in dto.skills_ids)
-                tvp.Rows.Add(id);
+	public async Task<IEnumerable<BusinessCategoryDto>> BusinessCategoryForUserAsync(Guid user_id)
+	{
+		using IDbConnection conn = _context.CreateOpenConnection();
+		var param = new { user_id };
+		CommandType? commandType = CommandType.StoredProcedure;
+		return await conn.QueryAsync<BusinessCategoryDto>("usp_user_business_category_get_all", param, null, null, commandType);
+	}
 
-            var parameters = new DynamicParameters();
-            parameters.Add("@id",dto.id);
-            parameters.Add("@user_id", _identity.GetUserId());
-            parameters.Add("@business_id", dto.business_id);
-            parameters.Add("@category_id", dto.category_id);
-            parameters.Add("@skills_ids", tvp.AsTableValuedParameter("dbo.IntList"));
+	public async Task<BusinessProfileDto> BusinessProfileForUserAsync(Guid user_id)
+	{
+		using IDbConnection conn = _context.CreateOpenConnection();
+		var param = new { user_id };
+		CommandType? commandType = CommandType.StoredProcedure;
+		return await conn.QueryFirstOrDefaultAsync<BusinessProfileDto>("usp_user_business_profile_get_async", param, null, null, commandType);
+	}
 
-            await conn.ExecuteAsync(
-                "usp_user_business_skills_update",
-                parameters,
-                commandType: CommandType.StoredProcedure
-            );
-        }
-        public async Task<IEnumerable<BusinessCategoryDto>> BusinessCategoryForUserAsync(Guid user_id)
-        {
-            using var conn = _context.CreateOpenConnection();
+	public async Task<BusinessProfileDto> BusinessProfileForSlugAsync(string public_slug)
+	{
+		using IDbConnection conn = _context.CreateOpenConnection();
+		var param = new { public_slug };
+		CommandType? commandType = CommandType.StoredProcedure;
+		return await conn.QueryFirstOrDefaultAsync<BusinessProfileDto>("usp_user_business_profile_get_by_slug", param, null, null, commandType);
+	}
 
-            var result = await conn.QueryAsync<BusinessCategoryDto>(
-                "usp_user_business_category_get_all",
-                new { user_id = user_id },
-                commandType: CommandType.StoredProcedure
-            );
-            return result;
-        }
-        public async Task<BusinessProfileDto> BusinessProfileForUserAsync(Guid user_id)
-        {
-            using var conn = _context.CreateOpenConnection();
+	public async Task<BusinessProfileDto> BusinessProfileUpsertAsync(BusinessProfileDto bpDto)
+	{
+		var parameters = new
+		{
+			bpDto.id, bpDto.user_id, bpDto.name, bpDto.description, bpDto.active_since, bpDto.website_url, bpDto.business_type_id, bpDto.number_of_employees, bpDto.registration_number, bpDto.service_radius_km,
+			bpDto.public_slug
+		};
+		using IDbConnection conn = _context.CreateOpenConnection();
+		CommandType? commandType = CommandType.StoredProcedure;
+		return await conn.QueryFirstOrDefaultAsync<BusinessProfileDto>("usp_user_business_profile_upsert", parameters, null, null, commandType);
+	}
 
-            var result = await conn.QueryFirstOrDefaultAsync<BusinessProfileDto>(
-                "usp_user_business_profile_get_async",
-                new { user_id = user_id },
-                commandType: CommandType.StoredProcedure
-            );
-            return result;
-        }
+	public async Task<UserAddress> BusinessAdressUpdateAsync(UserAddress uaModel)
+	{
+		var parameters = new
+		{
+			uaModel.user_id, uaModel.business_id, uaModel.address_id, uaModel.address_line1, uaModel.address_line2, uaModel.town, uaModel.county, uaModel.postcode, uaModel.country_code, uaModel.country_id,
+			uaModel.latitude, uaModel.longitude, uaModel.address_type_id, uaModel.service_radius_km, uaModel.is_primary
+		};
+		using IDbConnection conn = _context.CreateOpenConnection();
+		CommandType? commandType = CommandType.StoredProcedure;
+		return await conn.QueryFirstOrDefaultAsync<UserAddress>("usp_user_trade_address_upsert", parameters, null, null, commandType);
+	}
 
-        public async Task<BusinessProfileDto> BusinessProfileUpsertAsync(BusinessProfileDto bpDto)           
-        {
-            var parameters = new
-            {
-                id=bpDto.id,
-                user_id= bpDto.user_id,
-                name = bpDto.name,
-                description = bpDto.description,
-                active_since=bpDto.active_since,
-                website_url = bpDto.website_url,
-                business_type_id=bpDto.business_type_id,
-                number_of_employees=bpDto.number_of_employees,
-                registration_number = bpDto.registration_number,
-                service_radius_km=bpDto.service_radius_km,
-                public_slug=bpDto.public_slug
+	public async Task<IEnumerable<BusinessWebProfileGetDto>> BusinessWebProfileForUserAsync(Guid business_id)
+	{
+		using IDbConnection conn = _context.CreateOpenConnection();
+		var param = new { business_id };
+		CommandType? commandType = CommandType.StoredProcedure;
+		return await conn.QueryAsync<BusinessWebProfileGetDto>("usp_user_business_web_profile_get", param, null, null, commandType);
+	}
 
-            };
-            using var conn = _context.CreateOpenConnection();
-            var anyprofile= await conn.QueryFirstOrDefaultAsync<BusinessProfileDto>(
-                "usp_user_business_profile_upsert",
-                parameters,
-                commandType: CommandType.StoredProcedure
-            );
-            return anyprofile;
-        }
-        public async Task<UserAddress> BusinessAdressUpdateAsync(UserAddress uaModel)
-        {
-            var parameters = new
-            {
-                user_id = uaModel.user_id,
-                business_id = uaModel.business_id,
-                address_id = uaModel.address_id,
-                address_line1 = uaModel.address_line1,
-                address_line2 = uaModel.address_line2,
-                town = uaModel.town,
-                county = uaModel.county,
-                postcode = uaModel.postcode,
-                country_id = uaModel.country_id,
-                latitude = uaModel.latitude,
-                longitude = uaModel.longitude,
-                address_type_id = uaModel.address_type_id,
-                service_radius_km=uaModel.service_radius_km,
-                is_primary= uaModel.is_primary
+	public async Task BusinessWebProfileUpsert(BusinessWebProfileDto bwpDto)
+	{
+		List<(string, string)> platforms = new List<(string, string)>
+		{
+			("twitter", bwpDto.twitter_url),
+			("facebook", bwpDto.facebook_url)
+		};
+		foreach (var item in platforms)
+		{
+			if (!string.IsNullOrWhiteSpace(item.Item2))
+			{
+				using IDbConnection conn = _context.CreateOpenConnection();
+				var param = new
+				{
+					business_id = bwpDto.business_id,
+					platform = item.Item1,
+					url = item.Item2
+				};
+				CommandType? commandType = CommandType.StoredProcedure;
+				await conn.ExecuteAsync("usp_user_business_web_profile_upsert", param, null, null, commandType);
+			}
+		}
+	}
 
-            };
-            using var conn = _context.CreateOpenConnection();
-            var anyadress = await conn.QueryFirstOrDefaultAsync<UserAddress>(
-                "usp_user_trade_address_upsert",
-                parameters,
-                commandType: CommandType.StoredProcedure
-            );
-            return anyadress;
-        }
-        public async Task<IEnumerable<BusinessWebProfileGetDto>> BusinessWebProfileForUserAsync(Guid business_id)
-        {
+	public async Task<int> BusinessMaxCategoriesForUserAsync(Guid user_id)
+	{
+		using IDbConnection conn = _context.CreateOpenConnection();
+		var param = new { user_id };
+		CommandType? commandType = CommandType.StoredProcedure;
+		return await conn.QueryFirstOrDefaultAsync<int>("usp_user_business_max_categories_get", param, null, null, commandType);
+	}
 
-            using var conn = _context.CreateOpenConnection();
-            var result = await conn.QueryAsync<BusinessWebProfileGetDto>(
-                "usp_user_business_web_profile_get",
-                new { business_id = business_id },
-                commandType: CommandType.StoredProcedure
-            );
-            return result;
-            
-        }
-        public async Task BusinessWebProfileUpsert(BusinessWebProfileDto bwpDto)
-        {
-            var platforms = new List<(string platform, string url)>
-                {
-                    ("twitter", bwpDto.twitter_url),
-                    ("facebook", bwpDto.facebook_url)
-                };
-
-            foreach (var item in platforms)
-            {
-                if (!string.IsNullOrWhiteSpace(item.url))
-                {
-                    using var conn = _context.CreateOpenConnection();
-                    await conn.ExecuteAsync(
-                        "usp_user_business_web_profile_upsert",
-                        new { business_id = bwpDto.business_id, platform = item.platform, url = item.url },
-                        commandType: CommandType.StoredProcedure
-                    );
-                }
-            }
-        }
-
-
-    }
+	public async Task<int> BusinessMaxLocationsForUserAsync(Guid user_id)
+	{
+		using IDbConnection conn = _context.CreateOpenConnection();
+		var param = new { user_id };
+		CommandType? commandType = CommandType.StoredProcedure;
+		return await conn.QueryFirstOrDefaultAsync<int>("usp_user_business_max_locations_get", param, null, null, commandType);
+	}
 }

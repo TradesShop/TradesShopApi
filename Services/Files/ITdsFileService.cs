@@ -1,9 +1,10 @@
-﻿using TradePlatform.Api.DTOs.Files;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using TradePlatform.Api.DTOs.Files;
 
-namespace TradePlatform.Api.Services.Files
+namespace TradePlatform.Api.Services.Files;
+
+public interface ITdsFileService
 {
-    public interface ITdsFileService
-    {
-        Task<IEnumerable<UploadFilesDto>> GetUploadFilesAsync(FilesGetRequestDto fgrDto);
-    }
+	Task<IEnumerable<UploadFilesDto>> GetUploadFilesAsync(FilesGetRequestDto fgrDto);
 }

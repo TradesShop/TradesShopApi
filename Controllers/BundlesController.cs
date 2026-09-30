@@ -1,62 +1,40 @@
-﻿using Microsoft.AspNetCore.Http;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using TradePlatform.Api.DTOs.Bundles;
+using TradePlatform.Api.Models;
 using TradePlatform.Api.Services.Bundles;
-using static System.Net.WebRequestMethods;
 
-namespace TradePlatform.Api.Controllers
+namespace TradePlatform.Api.Controllers;
+
+[Route("api/[controller]")]
+[ApiController]
+public class BundlesController : BaseController
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class BundlesController : BaseController
-    {
-        private readonly IBundlePurchaseService _purchaseService;
-        private readonly IBundleAdminService _adminService;
+	private readonly IBundlePurchaseService _purchaseService;
 
-        public BundlesController(
-            IBundlePurchaseService purchaseService,
-            IBundleAdminService adminService,
-            IHttpContextAccessor http
-        ) : base(http)
-        {
-            _purchaseService = purchaseService;
-            _adminService = adminService;
-        }
+	private readonly IBundleAdminService _adminService;
 
-        // ------------------------------------------------------------
-        // 1. List active bundles (user-facing)
-        // ------------------------------------------------------------
-        [HttpGet("credit")]
-        public async Task<IActionResult> GetActiveCreditBundles()
-        {
-            var bundles = await _adminService.GetAllBundlesAsync();
-            return ApiOk(bundles);
-        }
+	public BundlesController(IBundlePurchaseService purchaseService, IBundleAdminService adminService)
+	{
+		_purchaseService = purchaseService;
+		_adminService = adminService;
+	}
 
-        // ------------------------------------------------------------
-        // 2. Create checkout session for bundle purchase
-        // ------------------------------------------------------------
-        [HttpPost("checkout")]
-        public async Task<IActionResult> CreateCheckoutSession([FromBody] BundleSelectDto req)
-        {
-            var (callerId, callerType) = GetIdentity();
-            Guid effectiveUserId = ResolveEffectiveUser(
-                callerId,
-                callerType,
-                req?.target_user_id
-            );
-            var successUrl = "http://localhost:3000/my-account/membership/credits/success";
-            var cancelUrl = "https://yourapp.com/bundles/cancel";
+	[HttpGet("credits")]
+	public async Task<IActionResult> GetActiveCreditBundles()
+	{
+		return ApiOk(await _adminService.GetAllBundlesAsync());
+	}
 
-            var url = await _purchaseService.CreateCheckoutSessionAsync(
-                effectiveUserId,
-                req.bundle_id,
-                req.bundle_price_id,
-                successUrl,
-                cancelUrl
-            );
-
-            return ApiOk(new { url });
-        }
-    }
+	[HttpPost("checkout")]
+	public async Task<IActionResult> CreateCheckoutSession([FromBody] BundleSelectDto req, CancellationToken cancellationToken)
+	{
+		(Guid userId, UserType userType) identity = GetIdentity();
+		Guid callerId = identity.userId;
+		UserType callerType = identity.userType;
+		Guid effectiveUserId = ResolveEffectiveUser(callerId, callerType, req?.target_user_id);
+		return ApiOk(await _purchaseService.CreateCheckoutSessionAsync(effectiveUserId, req.bundle_id, req.bundle_price_id, cancellationToken));
+	}
 }

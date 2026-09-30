@@ -1,8 +1,9 @@
-﻿using TradePlatform.Api.Models;
-namespace TradePlatform.Api.Repositories.Interfaces
+using System.Threading.Tasks;
+using TradePlatform.Api.Models;
+
+namespace TradePlatform.Api.Repositories.Interfaces;
+
+public interface ISubscriptionHistoryRepository
 {
-    public interface ISubscriptionHistoryRepository
-    {
-        Task<long> SubscriptionHistoryInsertAsync(SubscriptionHistory history);
-    }
+	Task<long> SubscriptionHistoryInsertAsync(SubscriptionHistory history);
 }

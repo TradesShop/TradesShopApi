@@ -1,19 +1,16 @@
-﻿using TradePlatform.Api.DTOs.Bundles;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using TradePlatform.Api.DTOs.Bundles;
+using TradePlatform.Api.Models.BundleCredit;
 
-namespace TradePlatform.Api.Services.Bundles
+namespace TradePlatform.Api.Services.Bundles;
+
+public interface IBundlePurchaseService
 {
-    public interface IBundlePurchaseService
-    {
-        Task<string> CreateCheckoutSessionAsync(
-           Guid user_id,
-           Guid bundle_id,
-           Guid bundle_price_id,
-           string successUrl,
-           string cancelUrl);
-        Task OnBundleCheckoutCompletedAsync(BundleCheckoutCompletedDto dto);
-        Task OnBundleOrderMarkFailedAsync(BundleCheckoutFailedDto dto);
-        
-    }
-    
-}
+	Task<BundlePurchaseResponse> CreateCheckoutSessionAsync(Guid userId, Guid bundleId, Guid bundlePriceId, CancellationToken cancellationToken);
 
+	Task CreditBundlePurchaseCompletedAsync(BundlePurchaseCompletedDto dto);
+
+	Task OnBundleOrderMarkFailedAsync(BundleCheckoutFailedDto dto);
+}

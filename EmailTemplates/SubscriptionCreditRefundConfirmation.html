@@ -1,0 +1,115 @@
+﻿<!-- MyTradesShop Refund Confirmation -->
+
+<div class="title">
+    Refund Processed, {{ReceiverName}}!
+</div>
+
+<div class="subtitle">
+    Your refund request has been successfully processed. Here is a summary of the refunded transaction for your records.
+</div>
+
+<!-- Refund Success Badge -->
+<div style="text-align:center; margin:20px 0 25px 0;">
+    <span style="
+        display:inline-block;
+        background:#e8f7ee;
+        color:#28a745;
+        padding:8px 18px;
+        border-radius:999px;
+        font-weight:600;
+        font-size:14px;">
+        &#10003; Refund Successful
+    </span>
+</div>
+
+<!-- Primary Refund Summary Card -->
+<div class="job-card">
+    <div class="heading-h4" style="margin-bottom:15px;">
+        Refund Summary
+    </div>
+
+    <p style="margin-bottom:5px;">
+        <strong>Product / Service:</strong> {{PlanType}} [{{PlanName}}]
+    </p>
+
+    <p style="margin-bottom:8px;">
+        <strong>Refund Date:</strong> {{CreatedDate}}
+    </p>
+
+    <p style="margin-bottom:8px;">
+        <strong>Amount Refunded:</strong> {{AmountPaid}}
+    </p>
+   
+
+    <!-- Optional Section for Associated Subscription Info -->
+    {{#if IsSubscription}}
+    <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+
+    <div class="heading-h4" style="margin-bottom:15px;">
+        Subscription Status
+    </div>
+
+    <p style="margin-bottom:8px;">
+        <strong>Plan Name:</strong> {{PlanType}} [{{PlanName}}]
+    </p>
+
+    <p style="margin-bottom:8px;">
+        <strong>Status:</strong> {{Status}}
+    </p>
+    {{/if}}
+
+    <!-- Optional Section for Deducted/Adjusted Credits -->
+    {{#if IsCreditBundle}}
+    <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+
+    <div class="heading-h4" style="margin-bottom:15px;">
+        Credit Balance Adjustment
+    </div>
+
+    <p style="margin-bottom:8px;">
+        <strong>Credits Refunded/Deducted:</strong> {{CreditsAdjusted}} Credits
+    </p>
+
+    {{#if TotalCredits}}
+    <p style="margin-bottom:8px;">
+        <strong>Remaining Available Credits:</strong> {{TotalCredits}} Credits
+    </p>
+    {{/if}}
+    {{/if}}
+</div>
+
+<!-- Call To Action -->
+<div class="tds-btn-center" style="margin-top:25px;">
+    <a href="{{AccountUrl}}" class="primary-btn">
+        Go to My Dashboard
+    </a>
+</div>
+
+<!-- Next Steps / Expectation Box -->
+<div style="margin-top:30px; padding:20px; background:#f8f9fa; border-radius:8px; text-align:left;">
+    <h4 style="margin-top:0; margin-bottom:10px; color:#333;">
+        When will I see the credit?
+    </h4>
+
+    <ul style="padding-left:20px; margin:0; color:#555; line-height:1.8;">
+        <li>
+            Refunds typically take <strong>5 to 10 business days</strong> to appear on your bank or credit card statement.
+        </li>
+        <li>
+            The funds will be credited directly back to the original payment method used during checkout.
+        </li>
+        <li>
+            If you do not see the credit after 10 business days, please reach out to your financial institution with the Refund Reference ID above.
+        </li>
+    </ul>
+</div>
+
+<!-- Support Section -->
+<div style="text-align:center; margin-top:30px; color:#666; font-size:14px; line-height:1.7;">
+    Need help or have questions regarding this refund?<br>
+    <a href="{{ContactUsUrl}}" style="color:#d96c1d; text-decoration:none; font-weight:600;">
+        Contact MyTradesShop Support
+    </a>
+    <br><br>
+    Thank you for choosing MyTradesShop!
+</div>

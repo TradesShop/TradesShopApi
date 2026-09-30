@@ -1,8 +1,10 @@
-﻿namespace TradePlatform.Api.DTOs
+using System;
+
+namespace TradePlatform.Api.DTOs;
+
+public class UpdateDescriptionDto
 {
-    public class UpdateDescriptionDto
-    {
-        public Guid file_id { get; set; }
-        public string description { get; set; }
-    }
+	public Guid file_id { get; set; }
+
+	public string description { get; set; }
 }

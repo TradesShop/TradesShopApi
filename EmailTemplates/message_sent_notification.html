@@ -1,0 +1,57 @@
+﻿
+
+<div class="title">Hi {{ReceiverName}},</div>
+
+<div class="subtitle">
+    You have received a new message regarding your job from our MyTradesShop support team.
+</div>
+
+<p>
+    <strong>{{SenderName}}</strong> has sent you a message about:
+</p>
+
+<p>
+    <strong>Job Reference:</strong> {{JobRef}}<br />
+    <strong>Job Title:</strong> {{JobTitle}}<br />
+    <strong>Category:</strong> {{JobCategory}}<br />
+    <strong>Job Posted On:</strong> {{JobCreatedAt}}
+</p>
+
+{{#if IsJobPurchase}}
+<p>
+    <strong>Job Purchase Details</strong><br />
+    This message is related to a job you have purchased.
+</p>
+{{/if}}
+
+{{#if IsJobDispute}}
+<p>
+    <strong>Job Dispute Update</strong><br />
+    This message is related to an active dispute for this job.
+</p>
+{{/if}}
+
+<p style="margin-top:15px;">
+    <strong>Message:</strong><br />
+    {{{MessageText}}}
+</p>
+<div class="tds-btn-center">
+    <a href="{{ConversationUrl}}" class="primary-btn">Chat with {{SenderName}}</a>
+</div>
+<p style="margin-top:15px;">
+    Responding quickly helps keep your job moving smoothly.
+</p>
+
+<h4>Need help?</h4>
+<p>You can manage your job or update details anytime.</p>
+
+<div class="tds-btn-center">
+    <a href="{{ManageJobUrl}}" class="primary-btn">View Job</a><br />
+</div>
+
+
+
+
+
+
+

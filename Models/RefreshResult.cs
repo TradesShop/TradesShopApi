@@ -1,27 +1,28 @@
-﻿namespace TradePlatform.Api.Models
+namespace TradePlatform.Api.Models;
+
+public class RefreshResult
 {
-    public class RefreshResult
-    {
-        public bool Success { get; set; }
-        public string AccessToken { get; set; } = string.Empty;
-        public string RefreshToken { get; set; } = string.Empty;
+	public bool success { get; set; }
 
-        public static RefreshResult Fail()
-        {
-            return new RefreshResult
-            {
-                Success = false
-            };
-        }
+	public string token { get; set; } = string.Empty;
 
-        public static RefreshResult Ok(string accessToken, string refreshToken)
-        {
-            return new RefreshResult
-            {
-                Success = true,
-                AccessToken = accessToken,
-                RefreshToken = refreshToken
-            };
-        }
-    }
+	public string refresh_token { get; set; } = string.Empty;
+
+	public static RefreshResult Fail()
+	{
+		return new RefreshResult
+		{
+			success = false
+		};
+	}
+
+	public static RefreshResult Ok(string accessToken, string refreshToken)
+	{
+		return new RefreshResult
+		{
+			success = true,
+			token = accessToken,
+			refresh_token = refreshToken
+		};
+	}
 }

@@ -1,203 +1,118 @@
-﻿
-
-using Dapper;
+using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Linq;
+using System.Threading.Tasks;
+using Dapper;
 using TradePlatform.Api.Data;
-using TradePlatform.Api.DTOs.Jobs;
 using TradePlatform.Api.DTOs.Questions;
-using TradePlatform.Api.Models;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
+namespace TradePlatform.Api.Repositories;
 
-namespace TradePlatform.Api.Repositories
+public class QuestionRepository
 {
-    public class QuestionRepository
-    {
-        private readonly DapperContext _context;
+	private readonly DapperContext _context;
 
-        public QuestionRepository(DapperContext context)
-        {
-            _context = context;
-        }
+	public QuestionRepository(DapperContext context)
+	{
+		_context = context;
+	}
 
-        public async Task<QuestionDto?> GetQuestionsByCategory(int category_id)
-        {
-            using var connection = _context.CreateOpenConnection();
+	public async Task<QuestionDto?> GetQuestionsByCategory(int category_id)
+	{
+		using IDbConnection connection = _context.CreateOpenConnection();
+		Dictionary<int, QuestionDto> questionDict = new Dictionary<int, QuestionDto>();
+		Func<QuestionDto, AnswerQeDto, QuestionDto> map = (QuestionDto q, AnswerQeDto a) =>
+		{
+			if (!questionDict.TryGetValue(q.id, out QuestionDto value))
+			{
+				value = q;
+				value.answers = new List<AnswerQeDto>();
+				questionDict.Add(value.id, value);
+			}
+			if (a != null && a.answerid != 0)
+			{
+				value.answers.Add(a);
+			}
+			return value;
+		};
+		var param = new { category_id };
+		CommandType? commandType = CommandType.StoredProcedure;
+		await connection.QueryAsync("usp_QuestionsByCategoryGetAsync", map, param, null, buffered: true, "answerid", null, commandType);
+		return questionDict.Values.FirstOrDefault();
+	}
 
-            var questionDict = new Dictionary<int, QuestionDto>();
+	public async Task<int?> GetNextQuestionId(RequestForNextQue nQue)
+	{
+		DataTable table = new DataTable();
+		table.Columns.Add("id", typeof(int));
+		foreach (int id in nQue.answer_ids)
+		{
+			table.Rows.Add(id);
+		}
+		using IDbConnection connection = _context.CreateOpenConnection();
+		var param = new
+		{
+			question_id = nQue.question_id,
+			answer_ids = table.AsTableValuedParameter("dbo.AnswerIdsList")
+		};
+		CommandType? commandType = CommandType.StoredProcedure;
+		return await connection.QueryFirstOrDefaultAsync<int?>("usp_QuestionNextIdGetAsync", param, null, null, commandType);
+	}
 
-            var result = await connection.QueryAsync<QuestionDto, AnswerQeDto, QuestionDto>(
-                "usp_QuestionsByCategoryGetAsync",
-                (q, a) =>
-                {
-                    if (!questionDict.TryGetValue(q.id, out var question))
-                    {
-                        question = q;
-                        question.answers = new List<AnswerQeDto>();
-                        questionDict.Add(question.id, question);
-                    }
+	public async Task<QuestionDto?> GetQuestionWithAnswers(int question_id)
+	{
+		using IDbConnection connection = _context.CreateConnection();
+		Dictionary<int, QuestionDto> questionDict = new Dictionary<int, QuestionDto>();
+		Func<QuestionDto, AnswerQeDto, QuestionDto> map = (QuestionDto q, AnswerQeDto a) =>
+		{
+			if (!questionDict.TryGetValue(q.id, out QuestionDto value))
+			{
+				value = q;
+				value.answers = new List<AnswerQeDto>();
+				questionDict.Add(value.id, value);
+			}
+			if (a != null && a.answerid != 0)
+			{
+				value.answers.Add(a);
+			}
+			return value;
+		};
+		var param = new { question_id };
+		CommandType? commandType = CommandType.StoredProcedure;
+		await connection.QueryAsync("usp_QuestionWithAnswersGetAsync", map, param, null, buffered: true, "answerid", null, commandType);
+		return questionDict.Values.FirstOrDefault();
+	}
 
-                    if (a != null && a.answerid != 0)
-                    {
-                        question.answers.Add(a);
-                    }
+	public async Task<List<QuestionDto>> GetQuestionsForPostJob(Guid job_id)
+	{
+		using IDbConnection connection = _context.CreateOpenConnection();
+		Dictionary<int, QuestionDto> questionDict = new Dictionary<int, QuestionDto>();
+		Func<QuestionDto, AnswerQeDto, QuestionDto> map = (QuestionDto q, AnswerQeDto a) =>
+		{
+			if (!questionDict.TryGetValue(q.id, out QuestionDto value))
+			{
+				value = q;
+				value.answers = new List<AnswerQeDto>();
+				questionDict.Add(value.id, value);
+			}
+			if (a != null && a.answerid > 0)
+			{
+				value.answers.Add(a);
+			}
+			return value;
+		};
+		var param = new { job_id };
+		CommandType? commandType = CommandType.StoredProcedure;
+		await connection.QueryAsync("usp_job_get_questions_for_postjob", map, param, null, buffered: true, "answerid", null, commandType);
+		return questionDict.Values.ToList();
+	}
 
-                    return question;
-                },
-                new { category_id = category_id },
-                commandType: CommandType.StoredProcedure,
-                splitOn: "answerid"
-            );
-            return questionDict.Values.FirstOrDefault();
-            //return questionDict.Values
-            //    .OrderBy(x => x.sortorder)
-            //    .ToList();
-        }
-        public async Task<int?> GetNextQuestionId(RequestForNextQue nQue)
-        {
-
-            var table = new DataTable();
-            table.Columns.Add("id", typeof(int));
-
-            foreach (var id in nQue.answer_ids)
-                table.Rows.Add(id);
-            using var connection = _context.CreateOpenConnection();
-
-            return await connection.QueryFirstOrDefaultAsync<int?>(
-                "usp_QuestionNextIdGetAsync",
-                new { 
-                    question_id=nQue.question_id,
-                    answer_ids = table.AsTableValuedParameter("dbo.AnswerIdsList") 
-                },
-                commandType: CommandType.StoredProcedure
-            );
-        }
-
-        public async Task<QuestionDto?> GetQuestionWithAnswers(int question_id)
-        {
-            using var connection = _context.CreateConnection();
-
-            var questionDict = new Dictionary<int, QuestionDto>();
-
-            await connection.QueryAsync<QuestionDto, AnswerQeDto, QuestionDto>(
-                "usp_QuestionWithAnswersGetAsync",
-                (q, a) =>
-                {
-                    if (!questionDict.TryGetValue(q.id, out var question))
-                    {
-                        question = q;
-                        question.answers = new List<AnswerQeDto>();
-                        questionDict.Add(question.id, question);
-                    }
-
-                    if (a != null && a.answerid != 0)
-                    {
-                        question.answers.Add(a);
-                    }
-
-                    return question;
-                },
-                new { question_id = question_id },
-                commandType: CommandType.StoredProcedure,
-                splitOn: "answerid"
-            );
-
-            return questionDict.Values.FirstOrDefault();
-        }
-
-        public async Task<List<QuestionDto>> GetQuestionsForPostJob(Guid job_id)
-        {
-            using var connection = _context.CreateOpenConnection();
-
-            var questionDict = new Dictionary<int, QuestionDto>();
-
-            await connection.QueryAsync<QuestionDto, AnswerQeDto, QuestionDto>(
-                "usp_job_get_questions_for_postjob",
-                (q, a) =>
-                {
-                    if (!questionDict.TryGetValue(q.id, out var question))
-                    {
-                        question = q;
-                        question.answers = new List<AnswerQeDto>();
-                        questionDict.Add(question.id, question);
-                    }
-
-                    if (a != null && a.answerid > 0)
-                    {
-                        question.answers.Add(a);
-                    }
-
-                    return question;
-                },
-                new { job_id = job_id },   // ✔ correct parameter name
-                commandType: CommandType.StoredProcedure,
-                splitOn: "answerid"
-            );
-
-            return questionDict.Values.ToList();   // ✔ return full list
-        }
-
-        public async Task UpsertAnswerAsync(AnswerUpsertDto auDto)
-        {
-            using var connection = _context.CreateOpenConnection();
-            await connection.ExecuteAsync(
-                "usp_job_post_answer_upsert",
-                new
-                {
-                    job_id = auDto.job_id,
-                    question_id = auDto.question_id,
-                    answer_id = auDto.answer_id
-                },
-                commandType: CommandType.StoredProcedure
-            );
-        }
-
-    }
+	public async Task UpsertAnswerAsync(AnswerUpsertDto auDto)
+	{
+		using IDbConnection connection = _context.CreateOpenConnection();
+		var param = new { auDto.job_id, auDto.question_id, auDto.answer_id };
+		CommandType? commandType = CommandType.StoredProcedure;
+		await connection.ExecuteAsync("usp_job_post_answer_upsert", param, null, null, commandType);
+	}
 }
-
-     
-
-    //public async Task<QuestionDto> GetQuestion(int questionid)
-    //    {
-    //        using var conn = _context.CreateConnection();
-
-    //        var questionDictionary = new Dictionary<int, QuestionDto>();
-
-    //        var result = await conn.QueryAsync<QuestionDto, AnswerDto, QuestionDto>(
-    //            "dbo.GetQuestionWithAnswers",
-    //            (q, a) =>
-    //            {
-    //                if (!questionDictionary.TryGetValue(q.id, out var question))
-    //                {
-    //                    question = new QuestionDto
-    //                    {
-    //                        id = q.id,
-    //                        title = q.title,
-    //                        type = q.type,
-    //                        answers = new List<AnswerDto>()
-    //                    };
-
-    //                    questionDictionary.Add(question.id, question);
-    //                }
-
-    //                if (a != null && a.answerid != 0)
-    //                {
-    //                    question.answers.Add(new AnswerDto
-    //                    {
-    //                        id = a.answerid,
-    //                        uxtext = a.answertext,
-    //                        additional_queid = a.additional_queid
-    //                    });
-    //                }
-
-    //                return question;
-    //            },
-    //            param: new { question_id = questionid },
-    //            commandType: CommandType.StoredProcedure,
-    //            splitOn: "answerid"
-    //        );
-
-    //        return questionDictionary.Values.FirstOrDefault();
-    //    }
-    //}
-

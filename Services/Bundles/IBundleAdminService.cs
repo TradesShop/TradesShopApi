@@ -1,23 +1,26 @@
-﻿using TradePlatform.Api.Models;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using TradePlatform.Api.Models;
+using TradePlatform.Api.Models.BundleCredit;
 
-namespace TradePlatform.Api.Services.Bundles
+namespace TradePlatform.Api.Services.Bundles;
+
+public interface IBundleAdminService
 {
-    public interface IBundleAdminService
-    {
-        Task<IEnumerable<CreditBundles>> GetActiveBundlesAsync();
+	Task<IEnumerable<CreditBundles>> GetActiveBundlesAsync();
 
-        // READ
-        Task<IEnumerable<CreditBundles>> GetAllBundlesAsync();
-        Task<CreditBundles?> GetBundleAsync(Guid bundle_id);
-        //Task<IEnumerable<BundlePrices>> GetBundlePricesAsync(Guid bundle_id);
-        Task<BundlePrices?> GetPriceAsync(Guid price_id);
+	Task<IEnumerable<CreditBundles>> GetAllBundlesAsync();
 
-        // CREATE
-        Task CreateBundleAsync(CreditBundles model);
-        Task CreatePriceAsync(BundlePrices model);
+	Task<CreditBundles?> GetBundleAsync(Guid bundle_id);
 
-        // UPDATE
-        Task UpdateBundleAsync(CreditBundles model);
-        Task UpdatePriceAsync(BundlePrices model);
-    }
+	Task<BundlePrices?> GetPriceAsync(Guid price_id);
+
+	Task CreateBundleAsync(CreditBundles model);
+
+	Task CreatePriceAsync(BundlePrices model);
+
+	Task UpdateBundleAsync(CreditBundles model);
+
+	Task UpdatePriceAsync(BundlePrices model);
 }

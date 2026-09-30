@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
   <OutputType>Exe</OutputType>
@@ -8,34 +8,27 @@
 	
   </PropertyGroup>
   <ItemGroup>
-   <None Update="appsettings.json">
-    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    <CopyToPublishDirectory>Never</CopyToPublishDirectory>
-  </None>
-
-  <None Update="appsettings.Production.json">
-    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    <CopyToPublishDirectory>Never</CopyToPublishDirectory>
-  </None>
-
-  <Content Update="web.config">
-    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    <CopyToPublishDirectory>Never</CopyToPublishDirectory>
-  </Content>
+  
   
   <Content Update="appsettings*.json" CopyToOutputDirectory="Never" />
   <Content Update="web.config" CopyToOutputDirectory="Never" />
   <None Remove="TradePlatform.Api" />
+  
+  <PackageReference Include="AWSSDK.Core" Version="4.0.100" />
 
   <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.4.4" />
    
-  <PackageReference Include="AWSSDK.S3" Version="4.0.24.1" />
+  <PackageReference Include="AWSSDK.S3" Version="4.0.100" />
    
   <PackageReference Include="Azure.AI.Vision.ImageAnalysis" Version="1.0.0" />
    
   <PackageReference Include="Azure.Storage.Blobs" Version="12.27.0" />
    
   <PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />
+   
+  <PackageReference Include="Google.Cloud.Vision.V1" Version="3.8.0" />
+   
+  <PackageReference Include="Handlebars.Net" Version="2.1.6" />
    
   <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
    
@@ -50,8 +43,22 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Dapper" Version="2.1.72" />
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageReference Include="Serilog.Exceptions" Version="8.4.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="Stripe.net" Version="51.2.0-beta.2" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.1" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Extensions\" />
+    <Folder Include="Models\Credits\" />
+  </ItemGroup>
+  <ItemGroup>
+  <Content Include="EmailTemplates\**\*">
+    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+  </Content>
+</ItemGroup>
+
 
 </Project>

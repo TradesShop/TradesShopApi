@@ -1,14 +1,13 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using TradePlatform.Api.Identity;
 
-namespace TradePlatform.Api.Data
+namespace TradePlatform.Api.Data;
+
+public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 {
-    public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
-    {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-            : base(options)
-        {
-        }
-    }
+	public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+		: base((DbContextOptions)options)
+	{
+	}
 }

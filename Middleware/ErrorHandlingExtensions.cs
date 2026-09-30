@@ -1,12 +1,12 @@
-﻿using Microsoft.AspNetCore.Builder;
+using System;
+using Microsoft.AspNetCore.Builder;
 
-namespace TradePlatform.Api.Middleware
+namespace TradePlatform.Api.Middleware;
+
+public static class ErrorHandlingExtensions
 {
-    public static class ErrorHandlingExtensions
-    {
-        public static IApplicationBuilder UseGlobalErrorHandling(this IApplicationBuilder app)
-        {
-            return app.UseMiddleware<ErrorHandlingMiddleware>();
-        }
-    }
+	public static IApplicationBuilder UseGlobalErrorHandling(this IApplicationBuilder app)
+	{
+		return app.UseMiddleware<ErrorHandlingMiddleware>(Array.Empty<object>());
+	}
 }

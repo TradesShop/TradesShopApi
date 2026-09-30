@@ -1,11 +1,14 @@
-﻿using TradePlatform.Api.DTOs.Jobs;
+using System.Threading.Tasks;
+using TradePlatform.Api.DTOs.Jobs;
 using TradePlatform.Api.DTOs.Reviews;
 
-namespace TradePlatform.Api.Services.Reviews
+namespace TradePlatform.Api.Services.Reviews;
+
+public interface IReviewsService
 {
-    public interface IReviewsService
-    {
-        Task<review_request_meta> SubmitReviewAsync(ReviewSubmitDto rsDto);
-        Task<ReviewReplyResponse> SubmitReviewReplyAsync(ReviewReplySubmit rrsDto);
-    }
+	Task<review_request_meta> SubmitReviewAsync(ReviewSubmitDto rsDto);
+
+	Task<ReviewReplyResponse> SubmitReviewReplyAsync(ReviewReplySubmit rrsDto);
+
+	Task<TraderReviewsResultDto?> GetReviewedReviewsForTrader(TraderReviewsDto tr_dto);
 }

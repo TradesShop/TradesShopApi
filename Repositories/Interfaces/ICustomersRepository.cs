@@ -1,9 +1,9 @@
-﻿using TradePlatform.Api.Models;
+using System.Threading.Tasks;
+using TradePlatform.Api.Models;
 
-namespace TradePlatform.Api.Repositories.Interfaces
+namespace TradePlatform.Api.Repositories.Interfaces;
+
+public interface ICustomersRepository
 {
-    public interface ICustomersRepository
-    {
-        Task CreateAsync(UserAddress customer);
-    }
+	Task CreateAsync(UserAddress customer);
 }

@@ -1,0 +1,221 @@
+﻿<!-- MyTradesShop Purchase Confirmation -->
+
+<div class="title">
+    Thank You for Your Purchase, {{ReceiverName}}!
+</div>
+
+<div class="subtitle">
+    Your payment has been successfully processed, and your purchase is now confirmed. Here is a summary of your purchase and account details.
+</div>
+
+<!-- Payment Success Badge -->
+<div style="text-align:center; margin:20px 0 25px 0;">
+    <span style="
+        display:inline-block;
+        background:#e8f7ee;
+        color:#28a745;
+        padding:8px 18px;
+        border-radius:999px;
+        font-weight:600;
+        font-size:14px;">
+        &#10003; Payment Successful
+    </span>
+</div>
+
+<!-- Primary Purchase Summary -->
+<div class="job-card">
+    <div class="heading-h4" style="margin-bottom:15px;">
+        Purchase Summary
+    </div>
+
+    <p style="margin-bottom:5px;">
+        <strong>Purchase Type:</strong> {{PurchaseType}}
+    </p>
+
+    <p style="margin-bottom:5px;">
+        <strong>Product:</strong> {{PlanType}} [{{ PlanName}}]
+    </p>
+
+    <p style="margin-bottom:8px;">
+        <strong>Purchase Date:</strong> {{CreatedDate}}
+    </p>
+
+    <p style="margin-bottom:8px;">
+        <strong>Amount Paid:</strong> {{AmountPaid}}
+    </p>
+
+    <!-- Section 1: Membership / Category / Location Subscriptions -->
+    {{#if IsSubscription}}
+    <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+
+    <div class="heading-h4" style="margin-bottom:15px;">
+        Subscription Details
+    </div>
+
+    <p style="margin-bottom:8px;">
+        <strong>Plan Name:</strong> {{PlanName}}
+    </p>
+
+    <p style="margin-bottom:8px;">
+        <strong>Billing Period:</strong> {{BillingPeriod}}
+    </p>
+
+    {{#if SubscriptionStartDate}}
+    <p style="margin-bottom:8px;">
+        <strong>Start Date:</strong> {{SubscriptionStartDate}}
+    </p>
+    {{/if}}
+
+    {{#if SubscriptionEndDate}}
+    <p style="margin-bottom:8px;">
+        <strong>End Date:</strong> {{SubscriptionEndDate}}
+    </p>
+    {{/if}}
+
+    {{#if IsAutoRenew}}
+    <p style="margin-bottom:8px;">
+        <strong>Next Renewal Date:</strong> {{SubscriptionEndDate}}
+    </p>
+    {{/if}}
+
+    <p style="margin-bottom:8px;">
+        <strong>Automatic Renewal:</strong> {{#if IsAutoRenew}}Enabled{{else}}Disabled{{/if}}
+    </p>
+    {{/if}}
+
+    <!-- Section 2: Standalone Credit Bundle Purchases -->
+    {{#if IsCreditBundle}}
+    <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+
+    <div class="heading-h4" style="margin-bottom:15px;">
+        Credit Purchase Details
+    </div>
+
+    <p style="margin-bottom:8px;">
+        <strong>Credit Bundle:</strong> {{PlanName}}
+    </p>
+
+    <p style="margin-bottom:8px;">
+        <strong>Credits Purchased:</strong> {{CreditsAdded}} Credits
+    </p>
+
+
+    {{/if}}
+
+    {{#if TotalCredits}}
+    <p style="margin-bottom:8px;">
+        <strong>Total Available Credits:</strong> {{TotalCredits}} Credits
+    </p>
+    {{/if}}
+    <!-- Section 3: Subscription-Awarded Credits -->
+    <!--{{#if HasSubscriptionCredits}}
+    <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+
+    <div class="heading-h4" style="margin-bottom:15px;">
+        Subscription Credits Deposited
+    </div>
+
+    <p style="margin-bottom:8px;">
+        <strong>Credits Awarded:</strong> {{CreditsAdded}} Credits
+    </p>
+
+    {{#if TotalCredits}}
+    <p style="margin-bottom:8px;">
+        <strong>Total Available Balance:</strong> {{TotalCredits}} Credits
+    </p>
+    {{/if}}
+    {{/if}}-->
+</div>
+
+<!-- Plan Benefits Section (Membership, Category, Location) -->
+<!--{{#if HasPlanBenefits}}
+<div class="job-card" style="margin-top:20px;">
+    <div class="heading-h4" style="margin-bottom:15px;">
+        Your Plan Benefits
+    </div>
+
+    <p style="margin-bottom:12px; color:#555;">
+        Your active plan includes the following coverage and perks:
+    </p>
+
+    <ul style="padding-left:20px; margin:0; color:#555; line-height:1.8;">
+        {{#if HasCreditsBenefit}}
+        <li>
+            <strong>Included Credits:</strong> {{PlanCreditsDescription}}
+        </li>
+        {{/if}}
+
+        {{#if HasCategoryBenefit}}
+        <li>
+            <strong>Category Subscriptions:</strong> {{CategoryLimitDescription}}
+        </li>
+        {{/if}}
+
+        {{#if HasLocationBenefit}}
+        <li>
+            <strong>Location Coverage:</strong> {{LocationLimitDescription}}
+        </li>
+        {{/if}}
+    </ul>
+</div>
+{{/if}}-->
+
+<!-- Call To Action -->
+<div class="tds-btn-center" style="margin-top:25px;">
+    <a href="{{AccountUrl}}" class="primary-btn">
+        Go to My Dashboard
+    </a>
+</div>
+
+<!-- Next Steps -->
+<div style="margin-top:30px; padding:20px; background:#f8f9fa; border-radius:8px; text-align:left;">
+    <h4 style="margin-top:0; margin-bottom:10px; color:#333;">
+        What's Next?
+    </h4>
+
+    <ul style="padding-left:20px; margin:0; color:#555; line-height:1.8;">
+        <li>
+            Your account benefits have been updated according to your selection.
+        </li>
+
+        {{#if HasCreditsBenefit}}
+        <li>
+            You can monitor your active credit balances from your user dashboard.
+        </li>
+        {{/if}}
+
+        {{#if HasCategoryBenefit}}
+        <li>
+            You can configure or adjust your active job categories in your account settings.
+        </li>
+        {{/if}}
+
+        {{#if HasLocationBenefit}}
+        <li>
+            You can add or update your active service postal codes and coverage areas anytime.
+        </li>
+        {{/if}}
+
+        {{#if IsSubscription}}
+        <li>
+            Manage your auto-renewal preferences and payment methods in your subscription profile.
+        </li>
+        {{/if}}
+
+        {{#if IsCreditBundle}}
+        <li>
+            Use your available credits to respond immediately to incoming trade leads.
+        </li>
+        {{/if}}
+    </ul>
+</div>
+
+<!-- Support Section -->
+<div style="text-align:center; margin-top:30px; color:#666; font-size:14px; line-height:1.7;">
+    Need help with your order or billing details?<br>
+    <a href="{{ContactUsUrl}}" style="color:#d96c1d; text-decoration:none; font-weight:600;">
+        Contact MyTradesShop Support
+    </a>
+    <br><br>
+    Thank you for choosing MyTradesShop! We look forward to helping you grow your business.
+</div>

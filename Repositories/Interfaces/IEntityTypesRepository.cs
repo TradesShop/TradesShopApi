@@ -1,10 +1,12 @@
-﻿
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using TradePlatform.Api.Models;
-namespace TradePlatform.Api.Repositories.Interfaces
+
+namespace TradePlatform.Api.Repositories.Interfaces;
+
+public interface IEntityTypesRepository
 {
-    public interface IEntityTypesRepository
-    {
-        Task<IReadOnlyList<EntityType>> GetAllAsync();
-        Task<EntityType?> GetByNameAsync(string name);
-    }
+	Task<IReadOnlyList<EntityTypes>> GetAllAsync();
+
+	Task<EntityTypes?> GetByNameAsync(string name);
 }

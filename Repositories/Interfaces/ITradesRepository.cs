@@ -1,11 +1,10 @@
-﻿using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using TradePlatform.Api.Models;
 
-namespace TradePlatform.Api.Repositories.Interfaces
+namespace TradePlatform.Api.Repositories.Interfaces;
+
+public interface ITradesRepository
 {
-    public interface ITradesRepository
-    {
-        Task<IEnumerable<Trades>> GetTradesAsync(int? id);
-        //Task CreateAsync(Tradesperson tradesperson);
-    }
+	Task<IEnumerable<Trades>> GetTradesAsync(int? id);
 }

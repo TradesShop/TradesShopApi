@@ -1,10 +1,12 @@
-﻿namespace TradePlatform.Api.Models
+namespace TradePlatform.Api.Models;
+
+public class category
 {
-    public class category
-    {
-        public string id { get; set; }
-        public string name { get; set; }
-        public string icon { get; set; }
-    }
-    
+	public int? id { get; set; }
+
+	public string name { get; set; }
+
+	public string slug { get; set; }
+
+	public string icon { get; set; }
 }

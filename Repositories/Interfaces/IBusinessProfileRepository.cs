@@ -1,12 +1,13 @@
-﻿using TradePlatform.Api.DTOs.users;
+using System;
+using System.Threading.Tasks;
+using TradePlatform.Api.DTOs.users;
 using TradePlatform.Api.Models;
 
-namespace TradePlatform.Api.Repositories.Interfaces
+namespace TradePlatform.Api.Repositories.Interfaces;
+
+public interface IBusinessProfileRepository
 {
-    public interface IBusinessProfileRepository
-    {
-        
-        Task<BusinessProfile?> GetByUserIdAsync(Guid user_id);
-        Task<IntroMessageUpdateReqDto> business_intro_msg_update_async(IntroMessageUpdateReqDto introMsgDto);
-    }
+	Task<BusinessProfile?> GetByUserIdAsync(Guid user_id);
+
+	Task<IntroMessageUpdateReqDto> business_intro_msg_update_async(IntroMessageUpdateReqDto introMsgDto);
 }

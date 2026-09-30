@@ -1,0 +1,107 @@
+﻿<!-- MyTradesShop Auto-Renewal Status Update -->
+
+<div class="title">
+    Subscription Setting Updated, {{ReceiverName}}
+</div>
+
+<div class="subtitle">
+    Your automatic renewal preference for your subscription has been successfully updated. Here are the updated details for your account.
+</div>
+
+<!-- Status Badge -->
+<div style="text-align:center; margin:20px 0 25px 0;">
+    {{#if IsAutoRenew}}
+    <span style="
+        display:inline-block;
+        background:#e8f7ee;
+        color:#28a745;
+        padding:8px 18px;
+        border-radius:999px;
+        font-weight:600;
+        font-size:14px;">
+        &#10003; Automatic Renewal Enabled
+    </span>
+    {{else}}
+    <span style="
+        display:inline-block;
+        background:#fff3cd;
+        color:#856404;
+        padding:8px 18px;
+        border-radius:999px;
+        font-weight:600;
+        font-size:14px;">
+        &#9888; Automatic Renewal Disabled
+    </span>
+    {{/if}}
+</div>
+
+<!-- Primary Subscription Details -->
+<div class="job-card">
+    <div class="heading-h4" style="margin-bottom:15px;">
+        Subscription Details
+    </div>
+
+    <p style="margin-bottom:8px;">
+        <strong>Plan Name:</strong> {{PlanType}} [{{ PlanName}}]
+    </p>
+
+    <p style="margin-bottom:8px;">
+        <strong>Billing Period:</strong> {{BillingPeriod}}
+    </p>
+
+    <p style="margin-bottom:8px;">
+        <strong>Automatic Renewal:</strong> {{#if IsAutoRenew}}Enabled{{else}}Disabled{{/if}}
+    </p>
+
+    {{#if IsAutoRenew}}
+    <p style="margin-bottom:8px;">
+        <strong>Next Renewal Date:</strong> {{SubscriptionEndDate}}
+    </p>
+    {{else}}
+    <p style="margin-bottom:8px;">
+        <strong>Plan Expiration Date:</strong> {{SubscriptionEndDate}}
+    </p>
+    {{/if}}
+</div>
+
+<!-- Call To Action -->
+<div class="tds-btn-center" style="margin-top:25px;">
+    <a href="{{SubscriptionUrl}}" class="primary-btn">
+        Manage Subscription Profile
+    </a>
+</div>
+
+<!-- Next Steps -->
+<div style="margin-top:30px; padding:20px; background:#f8f9fa; border-radius:8px; text-align:left;">
+    <h4 style="margin-top:0; margin-bottom:10px; color:#333;">
+        What Does This Mean?
+    </h4>
+
+    <ul style="padding-left:20px; margin:0; color:#555; line-height:1.8;">
+        {{#if IsAutoRenew}}
+        <li>
+            Your subscription will automatically renew on <strong>{{SubscriptionEndDate}}</strong> so your service remains uninterrupted.
+        </li>
+        <li>
+            You can modify or disable auto-renewal at any time prior to your next renewal date.
+        </li>
+        {{else}}
+        <li>
+            Your subscription will remain fully active until <strong>{{SubscriptionEndDate}}</strong>.
+        </li>
+        <li>
+            You will not be automatically charged again. To prevent loss of benefits after {{SubscriptionEndDate}}, you can re-enable auto-renewal anytime in your dashboard.
+        </li>
+        {{/if}}
+    </ul>
+</div>
+
+<!-- Support Section -->
+<div style="text-align:center; margin-top:30px; color:#666; font-size:14px; line-height:1.7;">
+    Need help or wish to change your subscription options?<br>
+    <a href="{{ContactUsUrl}}" style="color:#d96c1d; text-decoration:none; font-weight:600;">
+        Contact MyTradesShop Support
+    </a>
+    <br><br>
+    Thank you for choosing MyTradesShop! We look forward to helping you grow your business.
+</div>
