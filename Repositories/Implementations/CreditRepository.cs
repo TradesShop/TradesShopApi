@@ -1,11 +1,13 @@
+using Dapper;
 using System;
 using System.Data;
 using System.Linq;
+using System.Numerics;
 using System.Threading.Tasks;
-using Dapper;
 using TradePlatform.Api.Data;
 using TradePlatform.Api.DTOs.Credits;
 using TradePlatform.Api.Repositories.Interfaces;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace TradePlatform.Api.Repositories.Implementations;
 
@@ -73,4 +75,18 @@ public class CreditRepository : ICreditRepository
 		CreditOrdersList.total_records = creditorders.ReadSingle<int>();
 		return CreditOrdersList;
 	}
+
+    public async Task CreditOrderUpdateAsync(CreditOrderUpdateDto couReq)
+    {
+        using IDbConnection conn = _context.CreateOpenConnection();
+        var param = new { 
+			 id=couReq.id
+			,is_refund_requested = couReq.is_refund_requested
+            ,cancellation_reason=couReq.cancellation_reason
+            ,actor = couReq.actor
+            ,source= couReq.source		    
+			,metadata_json= couReq.metadata_json
+        };     
+        await conn.ExecuteAsync("[dbo].[usp_bundle_order_cancel_request]", param);
+    }
 }

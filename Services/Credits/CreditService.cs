@@ -43,4 +43,8 @@ public class CreditService : ICreditService
 	{
 		return await _credits.GetCreditOrdersListAsync(cosDto);
 	}
+    public async Task CreditOrderUpdateAsync(CreditOrderUpdateDto couReq)
+    {
+        await _credits.CreditOrderUpdateAsync(couReq);
+    }
 }

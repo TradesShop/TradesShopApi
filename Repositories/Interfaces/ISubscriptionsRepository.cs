@@ -9,7 +9,9 @@ namespace TradePlatform.Api.Repositories.Interfaces;
 
 public interface ISubscriptionsRepository
 {
-	Task<SubscriptionViewDto?> GetActiveSubscriptionForUserAsync(Guid user_id, string plan_type);
+	Task SubscriptionCancelRequestAsync(SubscriptionCancelReqDto model);
+
+    Task<SubscriptionViewDto?> GetActiveSubscriptionForUserAsync(Guid user_id, string plan_type);
 
 	Task SubscriptionEventProcessUpdateAsync(SubscriptionEventProcessDto model);
 
@@ -32,12 +34,15 @@ public interface ISubscriptionsRepository
 	Task<subscriptionpending_view?> subscriptionpending_update_async(subscriptionpending_upd spdto);
 
 	Task<subscriptionpending_view?> subscriptionpending_upsert_async(subscriptionpending_upsert spdto);
+	
 
-	Task<IEnumerable<subscriptionpending_view>> ScheduledSubscriptionsAllAsync(subscriptionpending_req scpreq);
+
+    Task<IEnumerable<subscriptionpending_view>> ScheduledSubscriptionsAllAsync(subscriptionpending_req scpreq);
 
 	Task<subscriptionpending_view?> ScheduledSubscriptionsViewAsync(subscriptionpending_req scpreq);
 
 	Task SubscriptionUpsertAsync(SubscriptionEventProcessDto model);
+    Task SubscriptionUpdateFromStripeWebhook(SubscriptionEventProcessDto model);
 
-	Task SubscriptionCancelAsync(SubscriptionEventProcessDto model);
+    Task SubscriptionCancelAsync(SubscriptionEventProcessDto model);
 }

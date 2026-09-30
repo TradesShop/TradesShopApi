@@ -20,7 +20,13 @@ public class BundleOrdersRepository : IBundleOrdersRepository
 	public async Task<BundleOrders> CreateAsync(BundleOrders order)
 	{
 		using IDbConnection conn = _context.CreateOpenConnection();
-		var param = new { order.user_id, order.bundle_price_id, order.stripe_session_id, order.stripe_price_id, order.amount, order.currency };
+		var param = new { 
+			  order.user_id
+			, order.bundle_price_id			
+			, order.stripe_price_id
+			, order.amount
+			, order.currency 
+		};
 		CommandType? commandType = CommandType.StoredProcedure;
 		return await conn.QueryFirstOrDefaultAsync<BundleOrders>("usp_bundle_order_create", param, null, null, commandType);
 	}
