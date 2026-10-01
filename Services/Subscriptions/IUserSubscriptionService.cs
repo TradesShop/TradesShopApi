@@ -40,6 +40,6 @@ public interface IUserSubscriptionService
 	Task<SubscriptionCancelResponse> SetSubscriptionAutoRenewal(Guid effective_userid, Guid plan_price_id, string stripe_subscription_id);
 
     Task SaveSubscriptionUpsertAsync(Subscription? subscription, Guid user_id, Guid plan_price_id, Dictionary<string, string> metadata, Guid? subscription_id, Event? stripeEvent, string? action = "created", string? actor = "user", string? source = "api");
-    Task SubscriptionUpdateFromStripeWebhook(Subscription? subscription, Guid user_id,Dictionary<string, string> metadata, Event? stripeEvent);
+	Task SubscriptionUpdateFromStripeWebhook(Subscription? subscription, Guid plan_price_id, Guid user_id, Dictionary<string, string> metadata, Event? stripeEvent);
 
 }
