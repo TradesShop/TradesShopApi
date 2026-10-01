@@ -60,7 +60,8 @@ public class SubscriptionsRepository : ISubscriptionsRepository
 		using IDbConnection conn = _context.CreateOpenConnection();
 		DynamicParameters parameters = new DynamicParameters();			
 		parameters.Add("@stripe_subscription_id", model.stripe_subscription_id);
-		parameters.Add("@stripe_price_id", model.stripe_price_id);
+        parameters.Add("@plan_price_id", model.plan_price_id);
+        parameters.Add("@stripe_price_id", model.stripe_price_id);
 		parameters.Add("@status", model.status);
 		parameters.Add("@user_id", model.user_id);
 		parameters.Add("@trial_start", model.trial_start);

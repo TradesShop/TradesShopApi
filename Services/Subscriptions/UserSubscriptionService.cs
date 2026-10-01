@@ -203,13 +203,15 @@ public class UserSubscriptionService : IUserSubscriptionService
 		await _subscriptionsRepository.SubscriptionCancelAsync(dto);
 	}
 
-    public async Task SubscriptionUpdateFromStripeWebhook(Subscription? subscription, Guid user_id, Dictionary<string, string> metadata, Event? stripeEvent)
+    public async Task SubscriptionUpdateFromStripeWebhook(Subscription? subscription,Guid plan_price_id, Guid user_id
+		, Dictionary<string, string> metadata, Event? stripeEvent)
     {
         SubscriptionItem subscriptionItem = subscription?.Items?.Data?.FirstOrDefault();
         string activePriceId = subscription.Items?.Data?.FirstOrDefault()?.Price?.Id;
         SubscriptionEventProcessDto dto = new SubscriptionEventProcessDto
         {           
             stripe_subscription_id = subscription?.Id,
+            plan_price_id= plan_price_id,
             stripe_price_id = activePriceId,           
             status = (subscription?.Status ?? "active"),
             user_id = user_id,
