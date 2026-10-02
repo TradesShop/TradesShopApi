@@ -1,8 +1,9 @@
+using Dapper;
+using Stripe;
 using System;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
-using Dapper;
 using TradePlatform.Api.Data;
 using TradePlatform.Api.DTOs.Refunds;
 using TradePlatform.Api.Models.Email;
@@ -32,7 +33,15 @@ public class RefundRepository : IRefundRepository
 	public async Task<RefundRequestResponse?> CreateRefundRequestAsync(RefundRequestCreateDto rrc_dto)
 	{
 		using IDbConnection connection = _context.CreateOpenConnection();
-		var param = new { rrc_dto.user_id, rrc_dto.entity_type_id, rrc_dto.entity_id, rrc_dto.reason, rrc_dto.created_by };
+		var param = new {
+             user_id=rrc_dto.user_id
+			,entity_type_id= rrc_dto.entity_type_id
+			,entity_id= rrc_dto.entity_id
+			,reason=rrc_dto.reason
+			,created_by=rrc_dto.created_by 
+			,status_code= rrc_dto.status_code
+			,is_refund_requested=rrc_dto.is_refund_requested
+        };
 		CommandType? commandType = CommandType.StoredProcedure;
 		return await connection.QueryFirstOrDefaultAsync<RefundRequestResponse>("[dbo].[usp_refund_request_create]", param, null, null, commandType);
 	}

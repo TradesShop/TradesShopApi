@@ -472,6 +472,7 @@ public class UserSubscriptionService : IUserSubscriptionService
 			await subscriptionService.UpdateAsync(activeSubs.stripe_subscription_id, new SubscriptionUpdateOptions
 			{
 				ProrationBehavior = "none",
+
                 CancelAtPeriodEnd = false,
 				Metadata = BuildAuditMetadata(activeSubs.id, user_id, currentPlan)
 			});
@@ -876,7 +877,7 @@ public class UserSubscriptionService : IUserSubscriptionService
 		{
 			throw new InvalidOperationException("Stripe subscription has no items");
 		}
-		_ = subs_item.CurrentPeriodStart;
+	
 		DateTime stripePeriodEnd = subs_item.CurrentPeriodEnd;
 		Dictionary<string, string> metadata = BuildAuditMetadata(current_subs.id, effective_userid, newPlan);
 		await SyncStripeCustomerAddressAsync(effective_userid, current_subs.stripe_customer_id);
@@ -909,9 +910,9 @@ public class UserSubscriptionService : IUserSubscriptionService
 						{
 							Enabled = true
 						}
-					},
-					EndBehavior = "release",
-                    ProrationBehavior = "none",
+						
+                    },
+					EndBehavior = "release",                    
                     Metadata = metadata,
 					Phases = new List<SubscriptionSchedulePhaseOptions>
 					{
@@ -930,9 +931,11 @@ public class UserSubscriptionService : IUserSubscriptionService
 						},
 						new SubscriptionSchedulePhaseOptions
 						{
-							Items = new List<SubscriptionSchedulePhaseItemOptions>
-							{
-								new SubscriptionSchedulePhaseItemOptions
+                          StartDate = stripePeriodEnd,
+                            Items = new List<SubscriptionSchedulePhaseItemOptions>
+							{                                
+
+                                new SubscriptionSchedulePhaseItemOptions
 								{
 									Price = new_stripe_price_id,
 									Quantity = 1L

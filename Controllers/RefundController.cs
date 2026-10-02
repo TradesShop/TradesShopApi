@@ -139,4 +139,23 @@ public class RefundController : BaseController
 		}
 		return ApiOk(result);
 	}
+
+    [HttpPost("request-without-refund")]
+    public async Task<IActionResult> CreateRequestWithoutRefund([FromBody] RefundRequestCreateDto rrc_dto)
+    {
+        (Guid userId, UserType userType) identity = GetIdentity();
+        Guid user_id = identity.userId;
+        UserType user_type = identity.userType;
+        rrc_dto.user_id = ResolveEffectiveUser(user_id, user_type, rrc_dto.target_user_id);
+        rrc_dto.created_by = user_id;
+        RefundRequestResponse refundreq = await _refundService.CreateRefundRequestAsync(rrc_dto);
+        if (refundreq == null)
+        {
+            return ApiError(new
+            {
+                error = "Refund request failed."
+            });
+        }
+        return ApiOk(refundreq);
+    }
 }
