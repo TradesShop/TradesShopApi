@@ -920,7 +920,8 @@ public class UserSubscriptionService : IUserSubscriptionService
 						{
 							StartDate = currentPeriodStart.Value,
 							EndDate = stripePeriodEnd,
-							Items = new List<SubscriptionSchedulePhaseItemOptions>
+                            ProrationBehavior = "none",
+                            Items = new List<SubscriptionSchedulePhaseItemOptions>
 							{
 								new SubscriptionSchedulePhaseItemOptions
 								{
@@ -932,6 +933,7 @@ public class UserSubscriptionService : IUserSubscriptionService
 						new SubscriptionSchedulePhaseOptions
 						{
                           StartDate = stripePeriodEnd,
+                          ProrationBehavior = "none",
                             Items = new List<SubscriptionSchedulePhaseItemOptions>
 							{                                
 
