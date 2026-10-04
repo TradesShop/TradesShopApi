@@ -866,44 +866,48 @@ public class UserSubscriptionService : IUserSubscriptionService
 		SubscriptionService subscriptionService = new SubscriptionService(_stripeClient);
 		Subscription stripeSubscription = await subscriptionService.GetAsync(stripeSubscriptionId, new SubscriptionGetOptions
 		{
-			Expand = new List<string> { "items.data.price", "latest_invoice.payment_intent" }
+			Expand = new List<string> { "items.data.price", "latest_invoice.payment_intent", "schedule" }
 		});
 		if (stripeSubscription.Status == "canceled" || stripeSubscription.Status == "incomplete_expired")
 		{
 			return await CreateSubscriptionAsync(effective_userid, newPlan.plan_id, new_plan_price_id);
 		}
-		SubscriptionItem subs_item = stripeSubscription.Items.Data.FirstOrDefault();
-		if (subs_item == null)
+		SubscriptionItem currentItem = stripeSubscription.Items.Data.FirstOrDefault();
+		if (currentItem == null)
 		{
 			throw new InvalidOperationException("Stripe subscription has no items");
 		}
-	
-		DateTime stripePeriodEnd = subs_item.CurrentPeriodEnd;
+        DateTime currentPeriodStart = currentItem.CurrentPeriodStart; 
+		DateTime currentPeriodEnd = currentItem.CurrentPeriodEnd;
+
 		Dictionary<string, string> metadata = BuildAuditMetadata(current_subs.id, effective_userid, newPlan);
 		await SyncStripeCustomerAddressAsync(effective_userid, current_subs.stripe_customer_id);
-		if (stripePeriodEnd > DateTime.UtcNow)
+		if (currentPeriodEnd > DateTime.UtcNow)
 		{
 			SubscriptionScheduleService scheduleService = new SubscriptionScheduleService(_stripeClient);
-			subscriptionpending_view existingPending = await _subscriptionsRepository.ScheduledSubscriptionsViewAsync(new subscriptionpending_req
-			{
+			subscriptionpending_view existingPending = await _subscriptionsRepository.ScheduledSubscriptionsViewAsync(
+				new subscriptionpending_req {
 				search_mode = "BY_SUBSCRIPTION",
 				user_id = effective_userid,
 				current_subscription_id = current_subs.id
 			});
-			string scheduleId = ((stripeSubscription.Schedule == null) ? (await scheduleService.CreateAsync(new SubscriptionScheduleCreateOptions
-			{
-				FromSubscription = stripeSubscriptionId
-			})).Id : stripeSubscription.Schedule.Id);
-			DateTime? currentPeriodStart = stripeSubscription.Items.Data.FirstOrDefault()?.CurrentPeriodStart;
-			DateTime? currentPeriodEnd = stripeSubscription.Items.Data.FirstOrDefault()?.CurrentPeriodEnd;
-			if (!currentPeriodStart.HasValue || !currentPeriodEnd.HasValue)
-			{
-				throw new InvalidOperationException("Stripe subscription does not contain a valid billing period.");
+
+            SubscriptionSchedule schedule; 
+
+			if (stripeSubscription.Schedule == null) 
+			{ 
+				schedule = await scheduleService.CreateAsync( new SubscriptionScheduleCreateOptions { FromSubscription = stripeSubscription.Id }); 
+			} 
+			else 
+			{ 
+				schedule = await scheduleService.GetAsync(stripeSubscription.Schedule.Id); 
 			}
+            DateTime phase1StartDate = schedule.Phases?.FirstOrDefault()?.StartDate ?? currentPeriodStart;
+           
 			try
 			{
-				SubscriptionSchedule updatedSchedule = await scheduleService.UpdateAsync(scheduleId, new SubscriptionScheduleUpdateOptions
-				{
+				SubscriptionSchedule updatedSchedule = await scheduleService.UpdateAsync(schedule.Id, 
+					new SubscriptionScheduleUpdateOptions {
 					DefaultSettings = new SubscriptionScheduleDefaultSettingsOptions
 					{
 						AutomaticTax = new SubscriptionScheduleDefaultSettingsAutomaticTaxOptions
@@ -911,28 +915,28 @@ public class UserSubscriptionService : IUserSubscriptionService
 							Enabled = true
 						}
 						
-                    },
+					},
 					EndBehavior = "release",                    
                     Metadata = metadata,
 					Phases = new List<SubscriptionSchedulePhaseOptions>
 					{
 						new SubscriptionSchedulePhaseOptions
 						{
-							StartDate = currentPeriodStart.Value,
-							EndDate = stripePeriodEnd,
+							StartDate = phase1StartDate,
+							EndDate = currentPeriodEnd,
                             ProrationBehavior = "none",
                             Items = new List<SubscriptionSchedulePhaseItemOptions>
 							{
 								new SubscriptionSchedulePhaseItemOptions
 								{
 									Price = current_subs.stripe_price_id,
-									Quantity = 1L
+									Quantity = 1
 								}
 							}
 						},
 						new SubscriptionSchedulePhaseOptions
 						{
-                          StartDate = stripePeriodEnd,
+                          StartDate = currentPeriodEnd,                          
                           ProrationBehavior = "none",
                             Items = new List<SubscriptionSchedulePhaseItemOptions>
 							{                                
@@ -940,7 +944,7 @@ public class UserSubscriptionService : IUserSubscriptionService
                                 new SubscriptionSchedulePhaseItemOptions
 								{
 									Price = new_stripe_price_id,
-									Quantity = 1L
+									Quantity = 1
 								}
 							}
 						}
@@ -949,7 +953,7 @@ public class UserSubscriptionService : IUserSubscriptionService
 				string phase2StripePriceId = (updatedSchedule.Phases?.LastOrDefault())?.Items?.FirstOrDefault()?.PriceId ?? new_stripe_price_id;
 				if (existingPending == null)
 				{
-					await SubmitSubscriptionPendingUpsert(effective_userid, current_subs, newPlan, updatedSchedule.Id, stripePeriodEnd);
+					await SubmitSubscriptionPendingUpsert(effective_userid, current_subs, newPlan, updatedSchedule.Id, currentPeriodEnd);
 				}
 				else
 				{
@@ -959,18 +963,18 @@ public class UserSubscriptionService : IUserSubscriptionService
 						new_plan_price_id = new_plan_price_id,
 						new_stripe_price_id = phase2StripePriceId,
 						stripe_schedule_id = updatedSchedule.Id,
-						effective_date = stripePeriodEnd,
+						effective_date = currentPeriodEnd,
 						status = "PENDING",
 						updated_by = effective_userid
 					});
 				}
 				SubscriptionSelectResponse subscriptionSelectResponse = new SubscriptionSelectResponse
 				{
-					status = "PENDING"
-				};
-				SubscriptionSelectResponse subscriptionSelectResponse2 = subscriptionSelectResponse;
-				subscriptionSelectResponse2.scheduled = await ScheduledInfo(newPlan, current_subs, stripePeriodEnd);
-				subscriptionSelectResponse.is_scheduled = true;
+					status = "PENDING",
+                    is_scheduled = true,
+                    scheduled = await ScheduledInfo(newPlan, current_subs, currentPeriodEnd)
+                };
+				
 				return subscriptionSelectResponse;
 			}
 			catch (StripeException)
@@ -978,18 +982,14 @@ public class UserSubscriptionService : IUserSubscriptionService
 				throw;
 			}
 		}
-		SubscriptionItem subscriptionItem = stripeSubscription.Items.Data.FirstOrDefault();
-		if (subscriptionItem == null)
-		{
-			throw new InvalidOperationException("Stripe subscription has no subscription items.");
-		}
+		
 		SubscriptionUpdateOptions updateOptions = new SubscriptionUpdateOptions
 		{
 			Items = new List<SubscriptionItemOptions>
 			{
 				new SubscriptionItemOptions
 				{
-					Id = subscriptionItem.Id,
+					Id = currentItem.Id,
 					Price = new_stripe_price_id
 				}
 			},
