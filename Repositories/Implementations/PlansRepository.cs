@@ -28,8 +28,15 @@ public class PlansRepository : IPlansRepository
 		CommandType? commandType = CommandType.StoredProcedure;
 		return await conn.QueryFirstOrDefaultAsync<PlanPriceByPriceId>("usp_plan_price_get_by_price_id", param, null, null, commandType);
 	}
-
-	public async Task<Plan?> GetPlanByIdAsync(Guid id)
+    public async Task<PlanPriceByPriceId?> GetPlanPriceByStripePriceId(string stripe_price_id)
+    {
+        using IDbConnection conn = _context.CreateOpenConnection();
+        var param = new { stripe_price_id };
+        CommandType? commandType = CommandType.StoredProcedure;
+        return await conn.QueryFirstOrDefaultAsync<PlanPriceByPriceId>("[dbo].[usp_plan_price_get_by_stripe_price_id]", param, null, null, commandType);
+    }
+    
+    public async Task<Plan?> GetPlanByIdAsync(Guid id)
 	{
 		using IDbConnection conn = _context.CreateOpenConnection();
 		var param = new { id };

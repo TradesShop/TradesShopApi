@@ -1,11 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Grpc.Core;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Stripe;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using TradePlatform.Api.DTOs.Bundles;
 using TradePlatform.Api.DTOs.Credits;
 using TradePlatform.Api.DTOs.Invoices;
@@ -38,7 +39,19 @@ public class StripeWebhookService : IStripeWebhookService
     private readonly IRefundRepository _refundRepo;
     private readonly StripeClient _stripeClient;
 
-    public StripeWebhookService(ILogger<StripeWebhookService> logger, IStripeEventsRepository eventsRepo, ISubscriptionsRepository subscriptionsRepo, ITdsInvoiceRepository invoicesRepo, IPaymentsRepository payments, ICreditService creditService, IBundlePurchaseService bundlePurchase, IPlansRepository plansRepository, IUserSubscriptionService subscriptionService, PaymentIntentService paymentIntentService, IRefundRepository refundRepo, IBackgroundEmailQueue backgroundEmailQueue, StripeClient stripeClient)
+    public StripeWebhookService(ILogger<StripeWebhookService> logger
+        , IStripeEventsRepository eventsRepo
+        , ISubscriptionsRepository subscriptionsRepo
+        , ITdsInvoiceRepository invoicesRepo
+        , IPaymentsRepository payments
+        , ICreditService creditService
+        , IBundlePurchaseService bundlePurchase
+        , IPlansRepository plansRepository
+        , IUserSubscriptionService subscriptionService
+        , PaymentIntentService paymentIntentService
+        , IRefundRepository refundRepo
+        , IBackgroundEmailQueue backgroundEmailQueue
+        , StripeClient stripeClient)
     {
         _logger = logger;
         _eventsRepo = eventsRepo;
@@ -394,16 +407,28 @@ public class StripeWebhookService : IStripeWebhookService
                 return;
             }
             Guid user_id = Guid.Parse(inv_metadata["user_id"]);
-            Guid plan_price_id = Guid.Parse(inv_metadata["plan_price_id"]);
+            Guid plan_price_id = Guid.Parse(inv_metadata["plan_price_id"]);          
             int entity_type_id = int.Parse(inv_metadata["entity_type_id"]);
             string entity_type = (inv_metadata.ContainsKey("entity_type") ? inv_metadata["entity_type"] : "subscription");
             Guid entity_id = Guid.Parse(inv_metadata["entity_id"]);
             string invoice_type = (inv_metadata.ContainsKey("subscription_type") ? inv_metadata["subscription_type"] : "credit_bundle");
+            //string? stripeSubscriptionId = stripeInvoice.;
+
+            string? activeStripePriceId = stripeInvoice.Lines?.Data?.FirstOrDefault()?.Pricing?.PriceDetails?.PriceId;           
+            if (entity_type_id == 3)
+            {
+                PlanPriceByPriceId? activePlan = await _plansRepository.GetPlanPriceByStripePriceId(activeStripePriceId);
+                Guid subscription_id = Guid.Parse(inv_metadata["subscription_id"]);
+                var invoiceMetadata = _subscriptionService.BuildAuditMetadata(subscription_id, user_id, activePlan);
+                var invoiceService = new InvoiceService(_stripeClient);
+                await invoiceService.UpdateAsync(stripeInvoice.Id, new InvoiceUpdateOptions { Metadata = invoiceMetadata });
+            }
             string metadataJson = JsonConvert.SerializeObject(new
             {
                 user_id = user_id,
                 plan_price_id = plan_price_id,
                 stripe_invoice_id = stripeInvoice.Id,
+                stripe_price_id = activeStripePriceId,
                 status = stripeInvoice.Status,
                 event_type = stripeEvent.Type,
                 updated_by = "stripe web hook"
@@ -466,6 +491,10 @@ public class StripeWebhookService : IStripeWebhookService
         InvoiceLineItem line = stripeInvoice.Lines?.Data?.FirstOrDefault();
         DateTime? billingPeriodStart = line?.Period?.Start;
         DateTime? billingPeriodEnd = line?.Period?.End;
+
+        
+
+
         List<InvoiceItemCreateDto> items = stripeInvoice.Lines.Data.Select((InvoiceLineItem invoiceLineItem) => new InvoiceItemCreateDto
         {
             entity_type = entityType,
