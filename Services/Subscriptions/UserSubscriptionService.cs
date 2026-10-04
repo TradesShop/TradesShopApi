@@ -935,8 +935,9 @@ public class UserSubscriptionService : IUserSubscriptionService
 						},
 						new SubscriptionSchedulePhaseOptions
 						{
-                          StartDate = currentPeriodEnd,                          
-                          ProrationBehavior = "always_invoice",
+                          StartDate = currentPeriodEnd,
+                          ProrationBehavior = "none",
+						  BillingCycleAnchor = "phase_start",
                             Items = new List<SubscriptionSchedulePhaseItemOptions>
 							{                                
 
