@@ -913,8 +913,7 @@ public class UserSubscriptionService : IUserSubscriptionService
 						AutomaticTax = new SubscriptionScheduleDefaultSettingsAutomaticTaxOptions
 						{
 							Enabled = true
-						}
-						
+						}						
 					},
 					EndBehavior = "release",                    
                     Metadata = metadata,
@@ -937,7 +936,7 @@ public class UserSubscriptionService : IUserSubscriptionService
 						new SubscriptionSchedulePhaseOptions
 						{
                           StartDate = currentPeriodEnd,                          
-                          ProrationBehavior = "none",
+                          ProrationBehavior = "always_invoice",
                             Items = new List<SubscriptionSchedulePhaseItemOptions>
 							{                                
 
