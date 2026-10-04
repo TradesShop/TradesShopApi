@@ -12,8 +12,10 @@ public interface IPlansRepository
 	Task<IEnumerable<Plan>> GetAllPlansAsync();
 
 	Task<PlanPriceByPriceId> GetPlanPriceByPriceId(Guid plan_price_id);
+	Task<PlanPriceByPriceId?> GetPlanPriceByStripePriceId(string stripe_price_id);
 
-	Task<Plan> GetPlanByIdAsync(Guid plan_id);
+
+    Task<Plan> GetPlanByIdAsync(Guid plan_id);
 
 	Task<PlanPrice> GetPlanPriceByIdAsync(Guid plan_price_id);
 

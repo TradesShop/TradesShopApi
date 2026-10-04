@@ -119,14 +119,12 @@ public class BundlePurchaseService : IBundlePurchaseService
 				anyorder.id.ToString()
 			},
 			{
-				"entity_id",
-				anyorder.id.ToString()
+				"entity_id",anyorder.id.ToString()
 			},
 			{ "entity_type_id", "12" },
 			{ "entity_type", "credit_bundle" },
 			{
-				"plan_price_id",
-				bundle_price_id.ToString()
+				"plan_price_id",bundle_price_id.ToString()
 			},
 			{ "source_type", "credit_bundle" },
 			{ "action", "creditbundle_created" },

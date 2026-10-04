@@ -258,38 +258,17 @@ public class UserSubscriptionService : IUserSubscriptionService
 	{
 		return new Dictionary<string, string>
 		{
-			{
-				"user_id",
-				user_id.ToString()
-			},
-			{
-				"subscription_id",
-				subsription_id.ToString()
-			},
-			{
-				"entity_id",
-				subsription_id.ToString()
-			},
-			{
-				"plan_id",
-				plan.plan_id.ToString()
-			},
-			{
-				"plan_price_id",
-				plan.plan_price_id.ToString()
-			},
-			{ "subscription_type", plan.plan_type },
-			{
-				"credits",
-				plan.credits_per_period.ToString()
-			},
-			{ "source_type", "subscription" },
-			{ "entity_type", "subscription" },
-			{ "entity_type_id", "3" },
-			{
-				"updated_at",
-				DateTime.UtcNow.ToString("O")
-			}
+			{"user_id",user_id.ToString()},
+			{"subscription_id",subsription_id.ToString()},
+			{"entity_id",subsription_id.ToString()},
+			{"plan_id",plan.plan_id.ToString()},
+			{"plan_price_id",plan.plan_price_id.ToString()},
+			{"subscription_type", plan.plan_type },
+			{"credits",	plan.credits_per_period.ToString()},
+			{"source_type", "subscription" },
+			{"entity_type", "subscription" },
+			{"entity_type_id", "3" },
+			{"updated_at",DateTime.UtcNow.ToString("O")}
 		};
 	}
 
@@ -843,7 +822,8 @@ public class UserSubscriptionService : IUserSubscriptionService
 		};
 	}
 
-	public async Task<SubscriptionSelectResponse> UpdateSubscriptionAsync(Guid effective_userid, Guid new_plan_price_id, string new_stripe_price_id, SubscriptionViewDto current_subs)
+	public async Task<SubscriptionSelectResponse> UpdateSubscriptionAsync(Guid effective_userid
+		, Guid new_plan_price_id, string new_stripe_price_id, SubscriptionViewDto current_subs)
 	{
 		if (current_subs == null)
 		{
@@ -857,7 +837,8 @@ public class UserSubscriptionService : IUserSubscriptionService
 		{
 			throw new InvalidOperationException("Stripe subscription id missing");
 		}
-		PlanPriceByPriceId newPlan = await _plansRepository.GetPlanPriceByPriceId(new_plan_price_id);
+        PlanPriceByPriceId currentPlan = await _plansRepository.GetPlanPriceByPriceId(current_subs.plan_price_id);
+        PlanPriceByPriceId newPlan = await _plansRepository.GetPlanPriceByPriceId(new_plan_price_id);
 		if (newPlan == null)
 		{
 			throw new Exception("Plan not found");
@@ -880,7 +861,10 @@ public class UserSubscriptionService : IUserSubscriptionService
         DateTime currentPeriodStart = currentItem.CurrentPeriodStart; 
 		DateTime currentPeriodEnd = currentItem.CurrentPeriodEnd;
 
-		Dictionary<string, string> metadata = BuildAuditMetadata(current_subs.id, effective_userid, newPlan);
+        
+        Dictionary<string, string> metadata = BuildAuditMetadata(current_subs.id, effective_userid, newPlan);
+
+
 		await SyncStripeCustomerAddressAsync(effective_userid, current_subs.stripe_customer_id);
 		if (currentPeriodEnd > DateTime.UtcNow)
 		{
@@ -891,6 +875,7 @@ public class UserSubscriptionService : IUserSubscriptionService
 				user_id = effective_userid,
 				current_subscription_id = current_subs.id
 			});
+            Dictionary<string, string> currentMetadata = BuildAuditMetadata(current_subs.id, effective_userid, currentPlan);
 
             SubscriptionSchedule schedule; 
 
@@ -916,7 +901,7 @@ public class UserSubscriptionService : IUserSubscriptionService
 						}						
 					},
 					EndBehavior = "release",                    
-                    Metadata = metadata,
+                    //Metadata = metadata,
 					Phases = new List<SubscriptionSchedulePhaseOptions>
 					{
 						new SubscriptionSchedulePhaseOptions
@@ -924,6 +909,7 @@ public class UserSubscriptionService : IUserSubscriptionService
 							StartDate = phase1StartDate,
 							EndDate = currentPeriodEnd,
                             ProrationBehavior = "none",
+                            Metadata=currentMetadata,
                             Items = new List<SubscriptionSchedulePhaseItemOptions>
 							{
 								new SubscriptionSchedulePhaseItemOptions
@@ -938,6 +924,7 @@ public class UserSubscriptionService : IUserSubscriptionService
                           StartDate = currentPeriodEnd,
                           ProrationBehavior = "none",
 						  BillingCycleAnchor = "phase_start",
+                          Metadata = metadata,
                             Items = new List<SubscriptionSchedulePhaseItemOptions>
 							{                                
 
