@@ -913,8 +913,7 @@ public class UserSubscriptionService : IUserSubscriptionService
 						AutomaticTax = new SubscriptionScheduleDefaultSettingsAutomaticTaxOptions
 						{
 							Enabled = true
-						}
-						
+						}						
 					},
 					EndBehavior = "release",                    
                     Metadata = metadata,
