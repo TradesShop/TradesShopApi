@@ -20,8 +20,9 @@ public class InvoiceUpsertProcessDto
 	public Guid user_id { get; set; }
 
 	public Guid plan_price_id { get; set; }
+    public string? stripe_price_id { get; set; }
 
-	public string status { get; set; }
+    public string status { get; set; }
 
 	public string currency { get; set; }
 

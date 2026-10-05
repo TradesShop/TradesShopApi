@@ -441,6 +441,7 @@ public class StripeWebhookService : IStripeWebhookService
                 entity_type = entity_type,
                 invoice_type = invoice_type,
                 plan_price_id = plan_price_id,
+                stripe_price_id= activeStripePriceId,
                 user_id = user_id,
                 status = stripeInvoice.Status,
                 currency = stripeInvoice.Currency,
@@ -487,6 +488,7 @@ public class StripeWebhookService : IStripeWebhookService
         string entityType = (meta.ContainsKey("entity_type") ? meta["entity_type"] : "subscription");
         Guid entityId = Guid.Parse(meta["entity_id"]);
         string invoice_type = (meta.ContainsKey("subscription_type") ? meta["subscription_type"] : "credit_bundle");
+        string? activeStripePriceId = stripeInvoice.Lines?.Data?.FirstOrDefault()?.Pricing?.PriceDetails?.PriceId;
         string chargeId = null;
         InvoiceLineItem line = stripeInvoice.Lines?.Data?.FirstOrDefault();
         DateTime? billingPeriodStart = line?.Period?.Start;
@@ -525,6 +527,7 @@ public class StripeWebhookService : IStripeWebhookService
             entity_type = entityType,
             user_id = userId,
             plan_price_id = planPriceId,
+            stripe_price_id = activeStripePriceId,
             status = "paid",
             amount_subtotal = (decimal)stripeInvoice.Subtotal / 100m,
             amount_vat = (decimal)(stripeInvoice.TotalTaxes?.Sum((InvoiceTotalTax x) => x.Amount) ?? 0) / 100m,
