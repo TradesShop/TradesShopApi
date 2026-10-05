@@ -39,7 +39,8 @@ public class TdsInvoiceRepository : ITdsInvoiceRepository
 		parameters.Add("@entity_type", model.entity_type);
 		parameters.Add("@invoice_type", model.invoice_type);
 		parameters.Add("@plan_price_id", model.plan_price_id);
-		parameters.Add("@user_id", model.user_id);
+        parameters.Add("@stripe_price_id", model.stripe_price_id);
+        parameters.Add("@user_id", model.user_id);
 		parameters.Add("@status", model.status);
 		parameters.Add("@currency", model.currency);
 		parameters.Add("@stripe_event_id", model.stripe_event_id);
@@ -91,7 +92,8 @@ public class TdsInvoiceRepository : ITdsInvoiceRepository
 		parameters.Add("@entity_type", model.entity_type);
 		parameters.Add("@user_id", model.user_id);
 		parameters.Add("@plan_price_id", model.plan_price_id);
-		parameters.Add("@status", model.status);
+        parameters.Add("@stripe_price_id", model.stripe_price_id);
+        parameters.Add("@status", model.status);
 		parameters.Add("@amount_subtotal", model.amount_subtotal);
 		parameters.Add("@amount_vat", model.amount_vat);
 		parameters.Add("@discount_amount", model.amount_discount);
