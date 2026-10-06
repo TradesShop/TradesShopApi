@@ -45,8 +45,8 @@ public class AuthController : BaseController
 		}
 		return Ok();
 	}
-
-	[HttpPost("send-email-code")]
+    
+    [HttpPost("send-email-code")]
 	public async Task<IActionResult> SendEmailCode([FromBody] SendEmailCodeDto dto)
 	{
 		if (string.IsNullOrWhiteSpace(dto.email))
