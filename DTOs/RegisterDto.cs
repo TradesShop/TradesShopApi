@@ -14,7 +14,7 @@ public class RegisterDto
 
 	public int primarytrade { get; set; }
 
-	public int secondarytrade { get; set; }
+	public int? secondarytrade { get; set; }
 
 	public string email { get; set; }
 
