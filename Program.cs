@@ -256,7 +256,15 @@ internal class Program
 		{
 			options.AddPolicy("FrontendCors", (CorsPolicyBuilder policy) =>
 			{
-				string[] origins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? new string[5] { "http://localhost:3000", "https://stage.tradesshop.co.uk", "https://tradesshop.co.uk", "https://stage.mytradesshop.com", "https://mytradesshop.com" };
+				string[] origins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? new string[7] { 
+					  "http://localhost:3000"
+					, "https://stage.tradesshop.co.uk"
+					, "https://tradesshop.co.uk"
+					, "https://stage.mytradesshop.com"
+                    , "https://api.mytradesshop.com"
+                    , "https://mytradesshop.com"
+                    , "https://www.mytradesshop.com"
+                };
 				policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod()
 					.AllowCredentials();
 			});
