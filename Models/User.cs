@@ -38,7 +38,9 @@ public class User
 
 	public Guid? business_id { get; set; }
 
-	public string? jwttoken { get; set; }
+	public string? business_name { get; set; }
+
+    public string? jwttoken { get; set; }
 
 	public string? verifycode { get; set; }
 }

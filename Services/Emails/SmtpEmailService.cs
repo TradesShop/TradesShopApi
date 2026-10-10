@@ -99,10 +99,18 @@ public class SmtpEmailService : IEmailService
 			Credentials = new NetworkCredential(_settings.Username, _settings.Password),
 			EnableSsl = true
 		};
-		MailMessage mail = new MailMessage(_settings.From, to, subject, body);
-		mail.IsBodyHtml = true;
-		await client.SendMailAsync(mail);
-	}
+        // Create MailAddress with (email, displayName)
+        MailAddress fromAddress = new MailAddress(_settings.From, "MyTradesShop");
+        MailAddress toAddress = new MailAddress(to);
+        using MailMessage mail = new MailMessage(fromAddress, toAddress)
+        {
+            Subject = subject,
+            Body = body,
+            IsBodyHtml = true
+        };
+
+        await client.SendMailAsync(mail);
+    }
 
 	public async Task SendJobPostedEmail(JobPostEmailNotifyDto job_email_notify)
 	{
