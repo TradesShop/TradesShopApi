@@ -37,7 +37,11 @@ public interface ICategoryService
 
 
 	/*Category/Service Locations*/
-	Task<Dictionary<string, List<LocationSummary>>> GetLocationsGroupedByRegionAsync(string? county = null);
+	Task<int> GetServiceLocationsSiteMapCountAsync();
+	Task<IEnumerable<locations_sitemap>> GetServiceLocationsSiteMapAsync(int offset, int limit);
+    Task<IEnumerable<service_sitemap>> GetAllServicesForSiteMapAsync();
+
+    Task<Dictionary<string, List<LocationSummary>>> GetLocationsGroupedByRegionAsync(string? county = null);
 	Task<location_seo> GetLocationSeoBySlugAsync(string loc_slug);
 
 }

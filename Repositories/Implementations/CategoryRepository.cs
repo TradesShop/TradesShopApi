@@ -4,8 +4,10 @@ using Microsoft.Data.SqlClient;
 using Stripe.Tax;
 using System.Collections.Generic;
 using System.Data;
-using System.Text.Json;
+using System.Data.Common;
+using System.Diagnostics.Metrics;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using TradePlatform.Api.Data;
 using TradePlatform.Api.DTOs.Categories;
@@ -189,16 +191,34 @@ public class CategoryRepository : ICategoryRepository
         return anyctgry_seo;
     }
 
+    public async Task<IEnumerable<service_sitemap>> GetAllServicesForSiteMapAsync()
+    {
+        using IDbConnection conn = _context.CreateOpenConnection();
+        return await conn.QueryAsync<service_sitemap>(
+            "[dbo].[usp_category_services_for_sitemap]"
+            , null
+            , commandType: CommandType.StoredProcedure);
+    }
 
 
     /*Service Locations*/
-    public async Task<IEnumerable<LocationService>> GetServiceLocationForPublic(string? county)
+    public async Task<int> GetServiceLocationsSiteMapCountAsync()
     {
         using IDbConnection conn = _context.CreateOpenConnection();
-        return await conn.QueryAsync<LocationService>(
-            "[dbo].[usp_locations_get_all_public]"
-            , new { county = county }
-            , commandType: CommandType.StoredProcedure);
+        const string sql = @"select count(1) as total from locations where is_active = 1";
+        return await conn.ExecuteScalarAsync<int>(sql);        
+    }
+    public async Task<IEnumerable<locations_sitemap>> GetServiceLocationsSiteMapAsync(int offset, int limit)
+    {
+        using IDbConnection conn = _context.CreateOpenConnection();
+        return await conn.QueryAsync<locations_sitemap>(
+       "[dbo].[usp_locations_get_all_for_sitemap]",
+       new
+       {
+           offset = offset,
+           limit = limit
+       },
+       commandType: CommandType.StoredProcedure);
     }
 
     public async Task<Dictionary<string, List<LocationSummary>>> GetLocationsGroupedByRegionAsync(string? country = null)

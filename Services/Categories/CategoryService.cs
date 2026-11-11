@@ -101,13 +101,22 @@ public class CategoryService : ICategoryService
         return await _ctgryRepo.CategorySeoUpsertAsync(ctgry_seo);
     }
 
+    public async Task<IEnumerable<service_sitemap>> GetAllServicesForSiteMapAsync()
+    {
+        return await _ctgryRepo.GetAllServicesForSiteMapAsync();
+    }
 
-	/*Service Locations here*/
-    //public async Task<IEnumerable<ServiceLocation>> GetServiceLocationForPublic(string? county)
-    //{
-    //    return await _ctgryRepo.GetServiceLocationForPublic(county);
-    //}
-    public async Task<Dictionary<string, List<LocationSummary>>> GetLocationsGroupedByRegionAsync(string? country = null)
+
+    /*Service Locations here*/
+    public async Task<int> GetServiceLocationsSiteMapCountAsync()
+    {
+        return await _ctgryRepo.GetServiceLocationsSiteMapCountAsync();
+    }
+    public async Task<IEnumerable<locations_sitemap>> GetServiceLocationsSiteMapAsync(int offset, int limit)
+	{
+		return await _ctgryRepo.GetServiceLocationsSiteMapAsync(offset, limit );
+	}
+	public async Task<Dictionary<string, List<LocationSummary>>> GetLocationsGroupedByRegionAsync(string? country = null)
     {        
         return await _ctgryRepo.GetLocationsGroupedByRegionAsync(country);
     }
