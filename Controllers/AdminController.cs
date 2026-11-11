@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using TradePlatform.Api.DTOs.Admin;
 using TradePlatform.Api.DTOs.Jobs;
 using TradePlatform.Api.Models;
+using TradePlatform.Api.Models.Categories;
 using TradePlatform.Api.Models.PlanPrices;
 using TradePlatform.Api.Repositories.Interfaces;
 using TradePlatform.Api.Services.Categories;
@@ -105,8 +106,22 @@ public class AdminController : BaseController
 		ctgry.id = null;
 		return ApiOk(await _ctgryService.CategoryUpsertAsync(ctgry));
 	}
+    [HttpGet("category/{category_id}/seo")]
+    public async Task<IActionResult> GetCategorySeoViewAsync(int category_id)
+    {
+        return ApiOk(await _ctgryService.GetCategorySeoViewAsync(category_id));
+    }
+    [HttpPut("category/{category_id}/seo")]
+    public async Task<IActionResult> CategorySeoUpsertAsync([FromRoute] int category_id, [FromBody] category_seo ctgry_seo)
+    {
+        if (category_id != ctgry_seo.category_id)
+        {
+            return BadRequest("Invalid category payload.");
+        }
+        return ApiOk(await _ctgryService.CategorySeoUpsertAsync(ctgry_seo));
+    }
 
-	[HttpGet("plans")]
+    [HttpGet("plans")]
 	public async Task<IActionResult> GetActivePlans([FromQuery] string plan_type, [FromQuery] Guid? user_id)
 	{
 		if (!user_id.HasValue || user_id.Value == Guid.Empty)
@@ -157,4 +172,5 @@ public class AdminController : BaseController
 	{
 		return ApiOk(await _plansService.GetPlanPricesByPlanIdAsync(plan_id, active_only));
 	}
+
 }

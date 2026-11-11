@@ -40,6 +40,57 @@ public class PublicApiController : BaseController
 	{
 		return ApiOk(await _ctgryService.GetCategoriesForPublic());
 	}
+    [HttpGet("categories/services")]
+    public async Task<IActionResult> GetCategoriesWithServicesForPublic()
+    {
+        return ApiOk(await _ctgryService.GetCategoriesWithServicesForPublic());
+    }
+    [HttpGet("categories/service/{service_slug}")]
+    public async Task<IActionResult> GetCategoryServiceWithSeoForPublic(string service_slug)
+    {
+        return ApiOk(await _ctgryService.GetCategoryServiceWithSeoForPublic(service_slug));
+    }
+
+    [HttpGet("categories/{category_slug}")]
+    public async Task<IActionResult> GetCategorySeoBySlugAsync(string category_slug)
+    {
+        return ApiOk(await _ctgryService.GetCategorySeoBySlugAsync(category_slug));
+    }
+
+    /*Category/service locations*/
+    [HttpGet("categories/service/locations")]
+	public async Task<IActionResult> GetServiceLocationsForPublic()
+    {
+        //var AllLocations = await _ctgryService.GetLocationsGroupedByRegionAsync();
+        return ApiOk(null);
+    }
+    [HttpGet("service/locations/by-region")]
+    //[ResponseCache(Duration = 86400)] // Cache response for 24 hours
+    public async Task<IActionResult> GetLocationsGroupedByRegionAsync()
+    {
+        var groupedLocations = await _ctgryService.GetLocationsGroupedByRegionAsync();
+        return Ok(groupedLocations);       
+    }
+	[HttpGet("service/location/{location_slug}")]
+	public async Task<IActionResult> GetLocationSeoBySlugAsync(string location_slug)
+	{
+        var anyloc_seo = await _ctgryService.GetLocationSeoBySlugAsync(location_slug);
+        return ApiOk(anyloc_seo);
+	}
+
+
+	//[HttpGet("categories/service/locations/{location_slug}")]
+	//public async Task<IActionResult> GetServiceLocationWithSeoForPublic(string location_slug)
+	//{
+	//    return ApiOk(await _ctgryService.GetServiceLocationWithSeoForPublic(location_slug));
+	//}
+
+
+
+
+
+
+
 
 	[HttpGet("business/profile/{slug}")]
 	public async Task<IActionResult> BusinessProfileForSlugAsync(string slug)
