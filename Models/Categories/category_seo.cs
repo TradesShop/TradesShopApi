@@ -1,5 +1,11 @@
 ﻿namespace TradePlatform.Api.Models.Categories
 {
+    public class service_sitemap
+    {
+        public int? id { get; set; }
+        public string slug { get; set; }
+        public DateTime? updated_at { get; set; }
+    }
     public class category_seo
     {
         public int? id { get; set; }

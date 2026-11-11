@@ -1,5 +1,13 @@
 ﻿namespace TradePlatform.Api.Models.Locations
 {
+    
+        public class locations_sitemap
+        {
+            public int id { get; set; }
+            public string name { get; set; } = string.Empty;
+            public string slug { get; set; } = string.Empty;
+            public DateTime? updated_at { get; set; }
+    }
     public class LocationSummary
     {
         public int id { get; set; }

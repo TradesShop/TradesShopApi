@@ -35,7 +35,13 @@ public class PublicApiController : BaseController
 		_publicService = publicService;
 	}
 
-	[HttpGet("categories")]
+    [HttpGet("categories/services/sitemap")]
+    public async Task<IActionResult> GetAllServicesForSiteMapAsync()
+    {
+        return ApiOk(await _ctgryService.GetAllServicesForSiteMapAsync());
+    }
+
+    [HttpGet("categories")]
 	public async Task<IActionResult> GetCategoriesAsync()
 	{
 		return ApiOk(await _ctgryService.GetCategoriesForPublic());
@@ -58,11 +64,18 @@ public class PublicApiController : BaseController
     }
 
     /*Category/service locations*/
-    [HttpGet("categories/service/locations")]
-	public async Task<IActionResult> GetServiceLocationsForPublic()
+    [HttpGet("service/locations/count")]
+    public async Task<IActionResult> GetServiceLocationsSiteMapCountAsync()
     {
-        //var AllLocations = await _ctgryService.GetLocationsGroupedByRegionAsync();
-        return ApiOk(null);
+        var locs_count = await _ctgryService.GetServiceLocationsSiteMapCountAsync();
+        return ApiOk(locs_count);
+    }
+
+    [HttpGet("service/locations/sitemap")]
+	public async Task<IActionResult> GetServiceLocationsSiteMapAsync(int offset = 0,int limit = 25)
+    {
+        var AllLocations = await _ctgryService.GetServiceLocationsSiteMapAsync(offset, limit);
+        return ApiOk(AllLocations);
     }
     [HttpGet("service/locations/by-region")]
     //[ResponseCache(Duration = 86400)] // Cache response for 24 hours
