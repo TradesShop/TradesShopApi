@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TradePlatform.Api.DTOs.Categories;
 using TradePlatform.Api.DTOs.CategoryTypes;
-using TradePlatform.Api.Models;
+using TradePlatform.Api.Models.Categories;
+using TradePlatform.Api.Models.Locations;
 using TradePlatform.Api.Repositories.Interfaces;
 
 namespace TradePlatform.Api.Services.Categories;
@@ -21,8 +23,12 @@ public class CategoryService : ICategoryService
 	{
 		return await _ctgryRepo.GetCategoriesForPublic();
 	}
+    public async Task<category_meta_seo> GetCategorySeoBySlugAsync(string ctgry_slug)
+    {
+        return await _ctgryRepo.GetCategorySeoBySlugAsync(ctgry_slug);
+    }
 
-	public async Task<IEnumerable<categories>> GetCategoriesAsync(string? category_ids)
+    public async Task<IEnumerable<categories>> GetCategoriesAsync(string? category_ids)
 	{
 		return await _ctgryRepo.GetCategoriesAsync(category_ids);
 	}
@@ -74,4 +80,39 @@ public class CategoryService : ICategoryService
 			orderby x.name
 			select x).ToList();
 	}
+    public async Task<category_meta_seo> GetCategoryServiceWithSeoForPublic(string service_slug) {
+        return await _ctgryRepo.GetCategoryServiceWithSeoForPublic(service_slug);
+    }    
+    public async Task<IEnumerable<category_services>> GetCategoriesWithServicesForPublic()
+    {
+        return await _ctgryRepo.GetCategoriesWithServicesForPublic();
+    }
+
+    public async Task<IEnumerable<category_meta_seo>> GetCategoriesWithSeoForPublic()
+    {
+        return await _ctgryRepo.GetCategoriesWithSeoForPublic();
+    }
+    public async Task<category_seo> GetCategorySeoViewAsync(int category_id)
+    {
+        return await _ctgryRepo.GetCategorySeoViewAsync(category_id);
+    }
+    public async Task<category_seo> CategorySeoUpsertAsync(category_seo ctgry_seo)
+    {
+        return await _ctgryRepo.CategorySeoUpsertAsync(ctgry_seo);
+    }
+
+
+	/*Service Locations here*/
+    //public async Task<IEnumerable<ServiceLocation>> GetServiceLocationForPublic(string? county)
+    //{
+    //    return await _ctgryRepo.GetServiceLocationForPublic(county);
+    //}
+    public async Task<Dictionary<string, List<LocationSummary>>> GetLocationsGroupedByRegionAsync(string? country = null)
+    {        
+        return await _ctgryRepo.GetLocationsGroupedByRegionAsync(country);
+    }
+    public async Task<location_seo> GetLocationSeoBySlugAsync(string loc_slug)
+    {
+        return await _ctgryRepo.GetLocationSeoBySlugAsync(loc_slug);
+    }
 }

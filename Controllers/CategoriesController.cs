@@ -1,7 +1,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using TradePlatform.Api.Models;
+using TradePlatform.Api.Models.Categories;
 using TradePlatform.Api.Services.Categories;
 
 namespace TradePlatform.Api.Controllers;
@@ -62,4 +62,9 @@ public class CategoriesController : BaseController
 	{
 		return ApiOk(await _ctgryService.GetCategorieTypesAsync());
 	}
+    [HttpGet("seo/{category_id}")]
+    public async Task<IActionResult> GetCategorySeoViewAsync(int category_id)
+    {
+        return ApiOk(await _ctgryService.GetCategorySeoViewAsync(category_id));
+    }
 }
